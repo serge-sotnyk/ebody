@@ -16,22 +16,22 @@ jobs:
     # The whole job takes a few minutes; anything longer is stuck.
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Reference data for verify-assets; pinned to the commit our assets come from.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: tosiabunio/pyelectroman
           ref: c4031f05b36f01ef0740c92d41616d94e9a4110f
           path: .pyelectroman
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
 
       # PyElectroMan itself, run headless as the reference for object behaviour.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - run: pip install -r tools/reference/requirements.txt
