@@ -8,8 +8,9 @@
 
 import { FLAG } from '../data/sprite-status.ts';
 import { TILE, type SpriteInfo } from '../data/types.ts';
+import { CREATURES } from './enemy-data.ts';
 import type { BorlandRandom } from './random.ts';
-import type { LevelSprites } from './tiles.ts';
+import type { LevelSprites, Sheet } from './tiles.ts';
 
 /** Object types selected by a sprite's `action` field. */
 export const ACTION = {
@@ -60,10 +61,17 @@ export type ObjectKind =
   /** A shot from the hero's weapon (weapons.ts). */
   | 'shot'
   /** What a destroyed object leaves behind; it stays in the level map. */
-  | 'broken';
+  | 'broken'
+  /** A walking or flying creature (enemies.ts). */
+  | 'enemy'
+  /** A creature's or cannon's shot; kills the hero on contact. */
+  | 'enemyShot'
+  /** Fires shots in one direction every so often. */
+  | 'cannon'
+  /** Waits for the hero to pass under (or over) it, then flies up (down). */
+  | 'rocket';
 
-/** Sprite sets other than the level's own two. */
-export type Sheet = 'weapons' | 'info';
+export type { Sheet } from './tiles.ts';
 
 export interface SimObject {
   kind: ObjectKind;
@@ -79,6 +87,26 @@ export interface SimObject {
   /** Shots: pixels moved per tick (negative to the left) and weapon level 1..5. */
   step?: number;
   level?: number;
+  /** Enemy shots and rockets: pixels moved per tick. */
+  vx?: number;
+  vy?: number;
+  /**
+   * Creatures, cannons, rockets: 'init' until the first update; creatures
+   * then 'patrol' or 'shoot', rockets 'waiting' or 'flying', cannons 'ready'.
+   */
+  phase?: 'init' | 'patrol' | 'shoot' | 'waiting' | 'flying' | 'ready';
+  /** Creatures: type 0..3 (enemy-data.ts), facing right, whether they shoot, patrol range. */
+  creature?: number;
+  facingRight?: boolean;
+  shoots?: boolean;
+  left?: number;
+  right?: number;
+  /** Creatures and cannons: ticks until the next shot; cannons: the base interval. */
+  timer?: number;
+  interval?: number;
+  /** Cannons: firing direction; rockets: -1 up, 1 down. */
+  dx?: number;
+  dy?: number;
   /** Action code of the placed sprite. */
   action: number;
   /** Top-left corner in the playfield, original pixels. */
@@ -125,9 +153,9 @@ export function objectSprite(o: SimObject): number | null {
 export const TOUCH = { none: 0, battery: 1, teleport: 2, checkpoint: 3, killer: 4, floppy: 5, exit: 6, special: 7 } as const;
 
 /** Status of the current frame (a hidden "plus" animation keeps its last frame, as in PyElectroMan). */
-const currentInfo = (o: SimObject, sprites: LevelSprites): SpriteInfo | null => {
+export const currentInfo = (o: SimObject, sprites: LevelSprites): SpriteInfo | null => {
   const index = o.frames.at(o.frame);
-  return index === undefined || o.sheet ? null : sprites.get(index);
+  return index === undefined ? null : sprites.info(index, o.sheet);
 };
 
 /**
@@ -135,6 +163,8 @@ const currentInfo = (o: SimObject, sprites: LevelSprites): SpriteInfo | null => 
  * be touched; hidden flashes can (Entity.is_touchable and its overrides).
  */
 export function objectTouchable(o: SimObject, sprites: LevelSprites): boolean {
+  // Creatures and their shots kill by their own test (enemies.ts), not by touch.
+  if (o.kind === 'enemy' || o.kind === 'enemyShot') return false;
   if ((o.kind === 'cyclePlus' || o.kind === 'pulsePlus') && !o.show) return false;
   const info = currentInfo(o, sprites);
   return info !== null && (info.flags & FLAG.touchable) !== 0;
@@ -254,14 +284,45 @@ export function createObject(index: number, x: number, y: number, ctx: ObjectCon
       o.kind = 'killingFloor';
       break;
     case ACTION.checkpoint:
-    case ACTION.cannonLeft:
-    case ACTION.cannonRight:
-    case ACTION.cannonUp:
-    case ACTION.cannonDown:
-      // Static for now; these keep their whole animation for later steps.
       o.frames = anim();
       o.frame = index - first;
       break;
+    case ACTION.cannonLeft:
+    case ACTION.cannonRight:
+    case ACTION.cannonUp:
+    case ACTION.cannonDown: {
+      // The animation's last sprite is the shot (EB_ENEM.C:656-657).
+      o.kind = 'cannon';
+      o.frames = anim();
+      o.frame = index - first;
+      o.phase = 'init';
+      const d = action - ACTION.cannonLeft;
+      o.dx = d === 0 ? -1 : d === 1 ? 1 : 0;
+      o.dy = d === 2 ? -1 : d === 3 ? 1 : 0;
+      break;
+    }
+    case ACTION.rocketUp:
+    case ACTION.rocketDown:
+      o.kind = 'rocket';
+      o.phase = 'waiting';
+      o.dy = action === ACTION.rocketUp ? -1 : 1;
+      o.vy = (info.param > 0 ? info.param : 4) * o.dy;
+      break;
+    case ACTION.enemy: {
+      // The spawner tile: type from its param, speed from its touch byte (EB_ENEM.C:1179).
+      const type = Math.floor((info.param & 0x7f) / 3);
+      const anims = CREATURES[type];
+      if (!anims) break;
+      o.kind = 'enemy';
+      o.sheet = 'enem';
+      o.creature = type;
+      o.frames = anims.left;
+      o.facingRight = false;
+      o.shoots = (info.param & 0x80) !== 0;
+      o.step = -info.touch;
+      o.phase = 'init';
+      break;
+    }
     default:
       break;
   }

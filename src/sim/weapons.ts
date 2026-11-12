@@ -1,12 +1,12 @@
 // The hero's weapon: five levels of shots, what they hit and what that does.
 // Ported from PyElectroMan emhero.py (PlayerEntity.fire_weapon, Projectile),
 // which follows EB_HERO.C:167-479 of the original; values in original pixels.
-// Enemies are not hit yet (step 8).
 
 import { FLAG } from '../data/sprite-status.ts';
 import { SCREEN_COLS, TILE, type SpriteSetFile } from '../data/types.ts';
 import { rectsOverlap, type Rect, type SolidBox } from './collision.ts';
-import { ACTION, blank, createBroken, createExplosion, objectBox, type SimObject } from './objects.ts';
+import { killCreature } from './enemies.ts';
+import { blank, createBroken, createExplosion, currentInfo, objectBox, type SimObject } from './objects.ts';
 import type { LevelSprites } from './tiles.ts';
 
 /** Shots per magazine for weapon levels 0..5. */
@@ -22,7 +22,7 @@ const range = (a: number, b: number): number[] => Array.from({ length: b - a + 1
  * the shot starts relative to the hero, and how fast it flies.
  *   1  short range: gone after one run of its animation
  *   2, 3  long range
- *   4  long range, passes through enemies (step 8)
+ *   4  long range, passes through creatures
  *   5  a two-tile-tall "bow"
  */
 const SHOTS: Record<number, { right: number[]; left: number[]; dx: number; dy: number; speed: number }> = {
@@ -66,6 +66,7 @@ export interface ShotContext {
   destroy(o: SimObject): void;
   /** Add an object to the room and to the level map. */
   leave(o: SimObject): void;
+  explode(x: number, y: number): void;
 }
 
 function shotBox(shot: SimObject, weapons: SpriteSetFile | null): Rect {
@@ -76,7 +77,10 @@ function shotBox(shot: SimObject, weapons: SpriteSetFile | null): Rect {
 /** PyElectroMan Projectile.collides_with: a plain overlap test, zero-sized boxes included. */
 const touches = (a: Rect, b: Rect): boolean => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
-/** One tick of a shot: animate, fly, then stop at a wall or at the first shootable object. */
+/**
+ * One tick of a shot: animate, fly, then stop at a wall; kill every creature
+ * it touches (level 4 flies on), or stop at the first shootable object.
+ */
 export function updateShot(shot: SimObject, c: ShotContext): void {
   const previous = shot.frame;
   shot.frame = (shot.frame + 1) % shot.frames.length;
@@ -107,16 +111,25 @@ export function updateShot(shot: SimObject, c: ShotContext): void {
     return;
   }
 
+  let hitCreature = false;
   for (const o of [...c.objects]) {
-    if (o === shot || o.removed || o.sheet || o.action === ACTION.enemy) continue; // enemies: step 8
-    const index = o.frames.at(o.frame);
-    const info = index === undefined ? null : c.sprites.get(index);
+    if (o === shot || o.removed) continue;
+    if (o.kind === 'enemy') {
+      if (touches(box, objectBox(o, c.sprites))) {
+        killCreature(o, c);
+        c.explode(shot.x, shot.y);
+        hitCreature = true;
+      }
+      continue;
+    }
+    const info = currentInfo(o, c.sprites);
     if (!info || !(info.flags & FLAG.shootable)) continue;
     if (!touches(box, objectBox(o, c.sprites))) continue;
     hitObject(o, info.flags, c);
     shot.removed = true;
     return;
   }
+  if (hitCreature && shot.level !== 4) shot.removed = true;
 }
 
 /**

@@ -1,6 +1,5 @@
-// Game page. The hero walks, jumps, shoots, uses teleports, collects
-// batteries and disks, dies on killers and leaves through the exit; enemies
-// come in step 8. The URL hash keeps the place, e.g. #elek/1.
+// Game page: the levels in play, with the hero, objects and enemies.
+// The URL hash keeps the place, e.g. #elek/1.
 
 import { GAME_LEVELS } from '../data/levels.ts';
 import { loadLevel, loadSpriteSet, type LoadedSpriteSet } from '../data/loader.ts';
@@ -23,7 +22,7 @@ const toastEl = $<HTMLElement>('toast');
 const fullscreenButton = $<HTMLButtonElement>('fullscreen');
 const display = createGameDisplay($<HTMLCanvasElement>('screen'), $<HTMLDivElement>('fit'));
 const keyboard = new Keyboard();
-const extraSets = Promise.all([loadSpriteSet('hero'), loadSpriteSet('weapons'), loadSpriteSet('info')]);
+const extraSets = Promise.all([loadSpriteSet('hero'), loadSpriteSet('weapons'), loadSpriteSet('info'), loadSpriteSet('enem')]);
 
 const settings = {
   get aspect(): PixelAspect {
@@ -98,14 +97,15 @@ async function openLevel(name: string, screen?: number): Promise<void> {
   const ticket = ++loading;
   const level = await loadLevel(name);
   const sets = await Promise.all([loadSpriteSet(level.sets[0]), loadSpriteSet(level.sets[1])]);
-  const [heroSheet, weapons, infoSheet] = await extraSets;
+  const [heroSheet, weapons, infoSheet, enem] = await extraSets;
   if (ticket !== loading) return; // a later request won
   hero = heroSheet;
   info = infoSheet;
   renderer = new LevelRenderer(level, sets);
-  renderer.sheets = { weapons, info: infoSheet };
+  renderer.sheets = { weapons, info: infoSheet, enem };
+  renderer.sprites.sheets = { weapons: weapons.meta, enem: enem.meta };
   levelName = name;
-  world = new World(level, renderer.sprites, { weapons: weapons.meta, ...(screen === undefined ? {} : { screen }) });
+  world = new World(level, renderer.sprites, screen === undefined ? {} : { screen });
   placeChanged();
 }
 

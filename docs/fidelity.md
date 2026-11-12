@@ -51,7 +51,7 @@ mapping rather than exactly.
 | G5 | What "Continue" restores | open | |
 | G6 | Secret exits (`special` with param ≥ 128) | settled | No object in the eight levels has the "special" touch type, so there is nothing to port. |
 | G7 | Weapon heat | chosen | As PyElectroMan: a shot adds heat by weapon level (1, 2, 1, 4, 3 for levels 1-5) and is refused when heat would pass 5; heat falls by one every five ticks; there is no other penalty. DOS check: does overheating do anything else? |
-| G8 | Enemy types 0, 1, 3 vs 2; behaviour after shooting | open | |
+| G8 | Creatures, cannons, rockets | chosen | As PyElectroMan: a creature's spawner tile gives its type ((param & 0x7f) / 3; type 2 flies), whether it shoots (param bit 7) and its speed (touch byte). On its first update it finds its patrol range (walkers: along their floor up to a wall or an edge; flyers: up to a wall or the screen edge), is removed if that is under one tile, and faces the hero; shooters fire every 32-96 ticks, walkers sideways, flyers down. Cannons fire every param..2·param ticks; rockets launch with one chance in eight per tick while the hero is in line. Creatures and their shots kill on contact; shots kill creatures (level 4 flies on). DOS check: patrol ranges, firing rates, what kills. |
 | G9 | In-game music | open | PyElectroMan only plays music on title, level-complete and ending screens. |
 | G10 | Pause, joystick, alternative keys | open | Keys so far: arrows, Up to jump, Space to fire. The controller is read once per tick; a key tapped and released between two ticks still counts for the next one (so short taps are not lost in the browser). |
 | G11 | Killing floor | chosen | As in PyElectroMan: it opens the bottom row of its screen once, removes itself from the level map (the row is solid again on later visits) and sets a flag that makes falling below the last row deadly on every screen until the hero dies. DOS check on `widok` 0. |
@@ -61,6 +61,7 @@ mapping rather than exactly.
 | G15 | Death explosions | chosen | Two explosions, then one more each tick for nine ticks, at random spots over the hero, at the original's offsets in original pixels (PyElectroMan applies them to doubled pixels, which bunches them up); the hero is gone for 70 ticks in all. DOS check by eye. |
 | G16 | Teleport timing | chosen | Fade out (6 ticks), out of sight for 12 ticks, move to the target, fade in (6 ticks), walk on. PyElectroMan fades in at once and then holds the hero frozen for the 12 ticks; in DOS the hero is gone for a while in between and can move soon after appearing, which also fits the original's names (teleport "in", hero_teleport_wait_proc, teleport "out"). The screen changes at the end of the wait. DOS check: on a teleport to another screen, does the new screen show before the hero appears? |
 | G17 | Shots | chosen | As PyElectroMan: one shot per press; level 1 flies one run of its animation (7 ticks), levels 2-5 to the screen edge; a shot stops at a wall (one explosion, three for the level 5 bow) or at the first shootable object, which explodes, and if breakable leaves the sprite after its animation in the level map until the hero dies. Shots do not hit enemies yet (step 8). DOS check: ranges and speeds by eye. |
+| G18 | Offsets PyElectroMan does not double | chosen | PyElectroMan works in doubled pixels but uses some of the original's offsets as they are: the explosion over a dying creature (centre − 12), the gap between a cannon and its shot (1 pixel) and the death explosions (G15). We use the original's values in original pixels. |
 
 ## PyElectroMan bugs not ported
 
@@ -81,3 +82,5 @@ run patches each of them out, so the comparison stays exact.
 - A teleport with no partner in its column of the map loops forever.
 - Firing just before falling into an empty screen crashes; here the shot is
   lost.
+- Enemy shots, like the hero's, delete a level object at their position
+  when they disappear.

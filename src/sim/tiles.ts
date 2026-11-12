@@ -19,14 +19,30 @@ export function classifyTile(sprite: SpriteInfo): TileKind {
   return 'background';
 }
 
-/** Sprite lookup for a level: indices 0..63 come from the first set, 64..127 from the second. */
+/** Sprite sets shared by all levels, as opposed to a level's own two. */
+export type Sheet = 'weapons' | 'info' | 'enem';
+
+/**
+ * Sprite lookup for a level: indices 0..63 come from the first set, 64..127
+ * from the second. `sheets` holds the shared sets the game logic needs
+ * (collision boxes of shots and enemies).
+ */
 export class LevelSprites {
-  constructor(readonly sets: readonly [SpriteSetFile, SpriteSetFile]) {}
+  constructor(
+    readonly sets: readonly [SpriteSetFile, SpriteSetFile],
+    public sheets: Partial<Record<Sheet, SpriteSetFile>> = {},
+  ) {}
 
   get(index: number): SpriteInfo | null {
     if (index < 0 || index >= 2 * SET_SIZE) return null;
     const set = this.sets[index < SET_SIZE ? 0 : 1];
     return set.sprites[index % SET_SIZE] ?? null;
+  }
+
+  /** A sprite of the level (no sheet) or of a shared set. */
+  info(index: number, sheet?: Sheet): SpriteInfo | null {
+    if (!sheet) return this.get(index);
+    return this.sheets[sheet]?.sprites[index] ?? null;
   }
 
   /**

@@ -2,10 +2,11 @@
 // Ported from PyElectroMan emdata.py (Level.load, Level.process) and
 // emgame.py (ScreenManager.change_screen, KillingFloor).
 
-import { SCREEN_COLS, SCREEN_ROWS, TILE, type LevelFile, type SpriteSetFile } from '../data/types.ts';
+import { SCREEN_COLS, SCREEN_ROWS, TILE, type LevelFile } from '../data/types.ts';
 import { solidBoxes, type SolidBox } from './collision.ts';
-import { createObject, updateObject, type ObjectContext, type SimObject } from './objects.ts';
-import { updateShot } from './weapons.ts';
+import { updateCannon, updateCreature, updateEnemyShot, updateRocket, type EnemyContext } from './enemies.ts';
+import { createExplosion, createObject, updateObject, type ObjectContext, type SimObject } from './objects.ts';
+import { updateShot, type ShotContext } from './weapons.ts';
 import { initScreenRandoms, type BorlandRandom } from './random.ts';
 import { ACTION_TELEPORT, classifyTile, type LevelSprites } from './tiles.ts';
 
@@ -103,15 +104,24 @@ export function enterRoom(
 export interface RoomWorld {
   disks: number;
   counter: number;
-  /** Weapons sprite set (shot collision boxes). */
-  weapons: SpriteSetFile | null;
+  /** The hero's position at the start of the tick, if there is a hero. */
+  hero: { x: number; y: number } | null;
+  /** A shot fired by an enemy; it joins the room at the end of the tick. */
+  spawn(o: SimObject): void;
   /** An object of this room left the level map for good (until the hero dies). */
   removeFromMap(o: SimObject): void;
   /** An object made during play joins the level map (remains of a destroyed object). */
   addToMap(o: SimObject): void;
 }
 
-const NO_WORLD: RoomWorld = { disks: 0, counter: 0, weapons: null, removeFromMap: () => {}, addToMap: () => {} };
+const NO_WORLD: RoomWorld = {
+  disks: 0,
+  counter: 0,
+  hero: null,
+  spawn: () => {},
+  removeFromMap: () => {},
+  addToMap: () => {},
+};
 
 /**
  * One tick of the room's objects, in order; objects made during the tick
@@ -120,20 +130,27 @@ const NO_WORLD: RoomWorld = { disks: 0, counter: 0, weapons: null, removeFromMap
 export function stepRoom(room: Room, sprites: LevelSprites, rng: BorlandRandom, world: RoomWorld = NO_WORLD): void {
   const ctx: ObjectContext = { sprites, rng, randoms: room.randoms, disks: world.disks, counter: world.counter };
   let solids: SolidBox[] | null = null;
-  const shots = {
+  const common = {
     sprites,
-    weapons: world.weapons,
     solids: () => (solids ??= solidBoxes(room, sprites)),
     objects: room.objects,
     destroy: (o: SimObject) => {
       o.removed = true;
       world.removeFromMap(o);
     },
+    explode: (x: number, y: number) => {
+      room.objects.push(createExplosion(x, y));
+    },
+  };
+  const shots: ShotContext = {
+    ...common,
+    weapons: sprites.sheets.weapons ?? null,
     leave: (o: SimObject) => {
       room.objects.push(o);
       world.addToMap(o);
     },
   };
+  const enemies: EnemyContext = { ...common, rng, hero: world.hero, spawn: world.spawn };
   for (const o of room.objects) {
     if (o.removed) continue;
     if (o.kind === 'killingFloor') {
@@ -145,6 +162,14 @@ export function stepRoom(room: Room, sprites: LevelSprites, rng: BorlandRandom, 
       world.removeFromMap(o);
     } else if (o.kind === 'shot') {
       updateShot(o, shots);
+    } else if (o.kind === 'enemy') {
+      updateCreature(o, enemies);
+    } else if (o.kind === 'enemyShot') {
+      updateEnemyShot(o, enemies);
+    } else if (o.kind === 'cannon') {
+      updateCannon(o, enemies);
+    } else if (o.kind === 'rocket') {
+      updateRocket(o, enemies);
     } else {
       const made = updateObject(o, ctx);
       if (made) room.objects.push(made);

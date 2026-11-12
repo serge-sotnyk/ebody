@@ -14,8 +14,10 @@ export interface DrawOp {
   /** Position inside the playfield, original pixels. */
   x: number;
   y: number;
-  /** Another sprite set than the level's (explosions, the checkpoint mark). */
+  /** Another sprite set than the level's (explosions, shots, creatures). */
   sheet?: Sheet;
+  /** Drawn behind the hero even if the sprite is flagged "in front". */
+  back?: boolean;
 }
 
 /**
@@ -46,8 +48,8 @@ export function sceneLayers(sprites: LevelSprites, groups: readonly (readonly Dr
   const layers: SceneLayers = { back: [], front: [] };
   for (const group of groups) {
     for (const op of group) {
-      if (op.sheet) {
-        layers.back.push(op); // explosions and marks are never "in front"
+      if (op.sheet || op.back) {
+        layers.back.push(op);
         continue;
       }
       const info = sprites.get(op.sprite);
@@ -76,7 +78,9 @@ export function roomLayers(room: Room, sprites: LevelSprites, active: { x: numbe
       shotSprites(o).forEach((s, i) => objects.push({ sprite: s, x: o.x, y: o.y + i * TILE, sheet: 'weapons' }));
       continue;
     }
-    objects.push({ sprite, x: o.x, y: o.y, ...(o.sheet ? { sheet: o.sheet } : {}) });
+    // PyElectroMan draws enemy shots and remains directly, never held back for the front layer.
+    const back = o.kind === 'enemyShot' || o.kind === 'broken';
+    objects.push({ sprite, x: o.x, y: o.y, ...(o.sheet ? { sheet: o.sheet } : {}), ...(back ? { back } : {}) });
   }
   return sceneLayers(sprites, [room.background, room.solid, objects]);
 }

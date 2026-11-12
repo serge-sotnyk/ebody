@@ -18,7 +18,11 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "verify-hero": "tsx tools/reference/verify-hero.ts"
+    "verify-hero": "tsx tools/reference/verify-hero.ts",
+    "dev:lan": "vite --host",
+    "predev": "npm run assets",
+    "predev:lan": "npm run assets",
+    "prebuild": "npm run assets"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

@@ -11,12 +11,13 @@ today:
 - the game page: every level running at 20 ticks a second with its animated
   objects, scaled to the whole window, with fullscreen; the hero walks,
   jumps, shoots, uses teleports, collects batteries and disks, reaches
-  checkpoints, dies and comes back, and leaves through the exit; the status
-  bars show weapon heat, weapon level and disks (enemies come next);
+  checkpoints, dies and comes back, and leaves through the exit; creatures
+  patrol and shoot, cannons fire, rockets launch; the status bars show
+  weapon heat, weapon level and disks;
 - a reproducible converter from the original DOS data files to web formats,
   checked against PyElectroMan's own converted data;
-- object animation and hero movement checked tick by tick against
-  PyElectroMan run headless;
+- objects, enemies and the hero checked tick by tick against PyElectroMan
+  run headless;
 - a level viewer (every screen of every level, with collision boxes);
 - a sprite viewer (decoded sprite metadata, sounds, title screens).
 
@@ -25,13 +26,22 @@ today:
 Requires Node.js 22 or newer.
 
 ```bash
-npm install
-npm run assets      # convert assets/original -> assets/generated
+npm install         # once, and again when package.json changes
 npm run dev         # http://localhost:5173/ebody/
 ```
 
+`npm run dev`, `npm run dev:lan` and `npm run build` first convert the original
+data in `assets/original` into `assets/generated` (`npm run assets`, under a
+second).
+
 The game page is `/ebody/`; press H there for the keys. The viewers are at
 `/ebody/levels.html` and `/ebody/sprites.html`.
+
+To try it on a phone or tablet in the same network, run `npm run dev:lan`
+and open the "Network" address it prints (`http://<computer's IP>:5173/ebody/`).
+Installing as an app (PWA) needs HTTPS or `localhost`, which plain LAN
+addresses are not; with USB debugging, `adb reverse tcp:5173 tcp:5173` makes
+the phone reach the dev server as `http://localhost:5173/ebody/`.
 
 Other commands:
 
@@ -41,7 +51,7 @@ Other commands:
 | `npm run build` | type-check and build the static site into `dist/` |
 | `npm run preview` | serve `dist/` at http://localhost:4173/ebody/ |
 | `npm run verify-assets` | compare our conversion with PyElectroMan's data; needs a PyElectroMan checkout in `../pyelectroman` or `$PYELECTROMAN_DIR` |
-| `npm run verify-objects` | run PyElectroMan's object code headless and compare every object's animation with ours, tick by tick; also needs Python with pygame (below) |
+| `npm run verify-objects` | run PyElectroMan's objects and enemies headless on every screen and compare them with ours, tick by tick; also needs Python with pygame (below) |
 | `npm run verify-hero` | play random key sequences from every checkpoint, teleport and exit in PyElectroMan and in our code, and compare the hero (position, state, animation, weapon), the disks, the checkpoint and every object on the screen tick by tick, through shooting, deaths and level exits; same needs |
 
 `verify-objects` and `verify-hero` look for Python in `../pyelectroman-venv` unless
@@ -80,7 +90,7 @@ original game's art assets under CC BY-SA 4.0.
 **Code** in this repository is licensed under the [MIT licence](LICENSE).
 Parts of it are ported from PyElectroMan (currently the data converters, the
 sprite metadata decoding, the tile classification, the random number
-generator, the object animations, collisions, the hero and the weapons), so the licence carries both copyright
+generator, the objects, collisions, the hero, the weapons and the enemies), so the licence carries both copyright
 lines.
 
 **Game assets** — everything in `assets/`, and everything the converter

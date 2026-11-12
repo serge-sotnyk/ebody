@@ -22,7 +22,8 @@ const PIPE = 5; // shootable, not breakable
 const WALL = 6;
 const KILLER = 7;
 
-const sprites = new LevelSprites([
+const sprites = new LevelSprites(
+  [
   {
     name: 'test',
     cell: 24,
@@ -38,7 +39,9 @@ const sprites = new LevelSprites([
     }),
   },
   { name: 'empty', cell: 24, columns: 8, sprites: new Array(64).fill(null) },
-]);
+  ],
+  { weapons },
+);
 
 /** Screen 0: floor; standing on it, the start (column 1), a crate (6), a pipe (8), a wall (11). Screen 1: a killer. */
 function level(): LevelFile {
@@ -54,7 +57,7 @@ function level(): LevelFile {
 }
 
 function armed(power: number): World {
-  const world = new World(level(), sprites, { weapons });
+  const world = new World(level(), sprites);
   world.hero!.power = power;
   world.hero!.ammo = MAGAZINE[power]!;
   return world;

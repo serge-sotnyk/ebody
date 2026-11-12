@@ -2,7 +2,7 @@
 // runs in the browser and in Node tests.
 
 import { startCheckpoint, type TilePlace } from '../data/levels.ts';
-import { MAP_COLS, SCREEN_COUNT, SCREEN_ROWS, TILE, type LevelFile, type SpriteSetFile } from '../data/types.ts';
+import { MAP_COLS, SCREEN_COUNT, SCREEN_ROWS, TILE, type LevelFile } from '../data/types.ts';
 import { groundDistance, solidBoxes } from './collision.ts';
 import {
   createHero,
@@ -17,6 +17,7 @@ import {
   type Touchable,
 } from './hero.ts';
 import { ACTION, createExplosion, objectBox, objectTouch, objectTouchable, type SimObject } from './objects.ts';
+import { enemyHits } from './enemies.ts';
 import { BorlandRandom } from './random.ts';
 import { enterRoom, screenLayout, stepRoom, type MapRemoval, type Room } from './room.ts';
 import type { LevelSprites } from './tiles.ts';
@@ -34,8 +35,6 @@ export interface WorldOptions {
    * instead of starting them afresh on every visit (docs/fidelity.md G3).
    */
   keepObjects?: boolean;
-  /** The weapons sprite set; shots need its collision boxes. */
-  weapons?: SpriteSetFile;
 }
 
 interface Removal {
@@ -74,10 +73,9 @@ export class World {
   /** Objects added to the level map during play (remains of destroyed objects); lost when the hero dies. */
   private added: { screen: number; object: SimObject }[] = [];
   private nextAddedId = ADDED_IDS;
-  /** Shots fired this tick; they join the room at its end. */
-  private newShots: SimObject[] = [];
+  /** Shots fired this tick (by the hero or enemies); they join the room at its end. */
+  private spawned: SimObject[] = [];
   private readonly keepObjects: boolean;
-  private readonly weapons: SpriteSetFile | null;
   /** Rooms visited since the level (re)started, when objects keep their state. */
   private rooms = new Map<number, Room>();
 
@@ -89,7 +87,6 @@ export class World {
     this.start = startCheckpoint(level, sprites) ?? { screen: 0, x: 0, y: 0 };
     this.checkpoint = this.start;
     this.keepObjects = options.keepObjects ?? false;
-    this.weapons = options.weapons ?? null;
     this.room = this.makeRoom(options.screen ?? this.start.screen);
     this.hero = options.hero === false ? null : createHero();
     if (this.hero) standOnTile(this.hero, this.start.x, this.start.y);
@@ -138,10 +135,14 @@ export class World {
   /** One tick with the given controller bits (INPUT): objects first, then the hero. */
   step(input = 0): void {
     const screen = this.room.screen;
+    const hero = this.hero;
     stepRoom(this.room, this.sprites, this.rng, {
       disks: this.disks,
       counter: this.tick,
-      weapons: this.weapons,
+      hero: hero ? { x: hero.x, y: hero.y } : null,
+      spawn: (o) => {
+        this.spawned.push(o);
+      },
       removeFromMap: (o) => {
         if (o.id >= 0) this.removed.push({ screen, id: o.id });
       },
@@ -151,7 +152,6 @@ export class World {
       },
     });
     if (this.room.killingFloor) this.killingFloor = true;
-    const hero = this.hero;
     if (hero) {
       const ctx: HeroContext = {
         input,
@@ -161,6 +161,10 @@ export class World {
         rng: this.rng,
         touchables: this.touchables(),
         touched: [],
+        enemyAt: (x, y) =>
+          this.room.objects.some(
+            (o) => (o.kind === 'enemy' || o.kind === 'enemyShot') && !o.removed && enemyHits(o, this.sprites, x, y),
+          ),
         screen: () => this.room.screen,
         changeScreen: (s) => this.enter(s),
         respawn: () => this.respawn(hero, ctx),
@@ -170,10 +174,10 @@ export class World {
       };
       updateHero(hero, ctx);
     }
-    if (this.newShots.length) {
+    if (this.spawned.length) {
       // Fired into an empty screen (the hero fell into one this tick), shots are lost.
-      if (this.level.screens[this.room.screen]) this.room.objects.push(...this.newShots);
-      this.newShots = [];
+      if (this.level.screens[this.room.screen]) this.room.objects.push(...this.spawned);
+      this.spawned = [];
     }
     this.tick += 1;
   }
@@ -223,7 +227,7 @@ export class World {
         this.completed = true;
       },
       shoot: (shot) => {
-        this.newShots.push(shot);
+        this.spawned.push(shot);
       },
     };
   }

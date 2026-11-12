@@ -145,6 +145,8 @@ export interface HeroContext {
   rng: BorlandRandom;
   /** Objects of the screen the tick started on that can be touched. */
   touchables: readonly Touchable[];
+  /** Does a creature or enemy shot reach a hero at (x, y)? (enemies.ts enemyHits) */
+  enemyAt(x: number, y: number): boolean;
   /** Filled during the tick: everything the hero touched, in order (duplicates possible). */
   touched: Touchable[];
   screen(): number;
@@ -192,8 +194,12 @@ export function heroSprites(hero: Hero): readonly [number, number] | null {
   return HERO_ANIMS[hero.anim][hero.frame] ?? null;
 }
 
+/** States in which creatures and enemy shots cannot hurt the hero. */
+const UNHURT: readonly HeroState[] = ['death', 'teleportOut', 'teleportWait', 'teleportIn'];
+
 export function updateHero(h: Hero, c: HeroContext): void {
   if (h.state !== 'death') touchAt(h, c, 0, 0);
+  if (!UNHURT.includes(h.state) && c.enemyAt(h.x, h.y)) newState(h, 'death');
   h.toGround = groundDistance(HERO_BOX, h.x, h.y, c.solids);
   if (h.next) {
     const s = h.next;

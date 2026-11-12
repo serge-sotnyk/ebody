@@ -14,7 +14,8 @@ import { join, resolve } from 'node:path';
 import { checkpoints, GAME_LEVELS, type TilePlace } from '../../src/data/levels.ts';
 import type { LevelFile, SpriteSetFile } from '../../src/data/types.ts';
 import { INPUT, MAGAZINE, TELEPORT_TIME } from '../../src/sim/hero.ts';
-import { ACTION, objectSprite } from '../../src/sim/objects.ts';
+import { ACTION } from '../../src/sim/objects.ts';
+import { objectCodes } from './codes.ts';
 import { screenLayout } from '../../src/sim/room.ts';
 import { SCREEN_COUNT, TILE } from '../../src/data/types.ts';
 import { LevelSprites } from '../../src/sim/tiles.ts';
@@ -59,10 +60,13 @@ const readJson = <T>(...p: string[]): T => JSON.parse(readFileSync(join(GENERATE
 const levels = new Map<string, { level: LevelFile; sprites: LevelSprites }>(
   GAME_LEVELS.map((name) => {
     const level = readJson<LevelFile>('levels', `${name}.json`);
-    const sprites = new LevelSprites([
-      readJson<SpriteSetFile>('sprites', `${level.sets[0]}.json`),
-      readJson<SpriteSetFile>('sprites', `${level.sets[1]}.json`),
-    ]);
+    const sprites = new LevelSprites(
+      [
+        readJson<SpriteSetFile>('sprites', `${level.sets[0]}.json`),
+        readJson<SpriteSetFile>('sprites', `${level.sets[1]}.json`),
+      ],
+      { weapons: readJson<SpriteSetFile>('sprites', 'weapons.json'), enem: readJson<SpriteSetFile>('sprites', 'enem.json') },
+    );
     return [name, { level, sprites }] as const;
   }),
 );
@@ -107,7 +111,6 @@ execFileSync(python, [join(import.meta.dirname, 'trace_hero.py'), PYELECTROMAN, 
   env: { ...process.env, TELEPORT_TIME: String(TELEPORT_TIME) },
 });
 type Row = [number, number, number, string, string, number, number, number, number, number, number, number, string];
-const weapons = readJson<SpriteSetFile>('sprites', 'weapons.json');
 const trace = JSON.parse(readFileSync(join(dir, 'trace.json'), 'utf8')) as Row[][];
 
 const snake = (s: string): string => s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
@@ -120,7 +123,7 @@ const screensVisited = new Set<string>();
 
 scenarios.forEach((sc, i) => {
   const { level, sprites } = levels.get(sc.level)!;
-  const world = new World(level, sprites, { screen: sc.screen, keepObjects: true, weapons });
+  const world = new World(level, sprites, { screen: sc.screen, keepObjects: true });
   world.placeHero(sc);
   world.disks = sc.disks ?? 0;
   if (sc.power) {
@@ -144,12 +147,7 @@ scenarios.forEach((sc, i) => {
       h.temp,
       world.disks,
       world.checkpoint.screen,
-      world.room.objects
-        .map((o) => {
-          const s = o.kind === 'exitIndicator' ? o.frames[0]! : objectSprite(o);
-          return `${o.x},${o.y}:${s === null ? '-' : o.sheet ? `w${s}` : s}`;
-        })
-        .join(' '),
+      objectCodes(world.room.objects),
     ];
     ticks++;
     screensVisited.add(`${sc.level}/${ours[0]}`);
