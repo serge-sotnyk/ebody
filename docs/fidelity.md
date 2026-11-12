@@ -46,13 +46,38 @@ mapping rather than exactly.
 |---|---|---|---|
 | G1 | Leaving a screen upwards | settled | No exit upwards: the way up is a teleport (Down on it), as in DOS. A jump past the top edge goes out of sight and falls back. |
 | G2 | Down key | settled | No ducking. In DOS, Down while standing or walking on a teleport (or an exit) uses it; nothing else (checked in DOS). We do the same, as PyElectroMan does. |
-| G3 | Objects on re-entering a screen | open | PyElectroMan keeps their state; does the original reset them? Our game page restarts their animations on every visit for now. Objects that removed themselves from the level map stay removed until the hero dies, as in PyElectroMan (G11). |
-| G4 | Checkpoint and respawn rules | open | PyElectroMan sends you back to the level start (a bug; fixed in the `kuznetz` fork). |
+| G3 | Objects on re-entering a screen | open | PyElectroMan keeps their state; we start them afresh on every visit. The original reseeds its random numbers from the screen number on every entry, which suggests it re-creates them too. `World` has a `keepObjects` switch for PyElectroMan's way (the reference comparison uses it). Objects removed from the level map (collected, exploded) stay removed either way until the hero dies (G11). DOS check: leave a screen with a blinking object and come back. |
+| G4 | Checkpoint and respawn rules | chosen | The hero comes back at the last checkpoint touched (the level start before that), with the weapon gone; the level map is restored except for the disks collected. PyElectroMan sends the hero to the level start instead, because rebuilding the level resets its checkpoint (a bug, fixed in the `kuznetz` fork); not ported. Touching a new checkpoint also takes the weapon away (EB_HERO.C:519). DOS check. |
 | G5 | What "Continue" restores | open | |
-| G6 | Secret exits (`special` with param ≥ 128) | open | PyElectroMan treats them as "game completed", which looks wrong. |
-| G7 | Weapon overheating penalty | open | PyElectroMan only blocks firing. |
+| G6 | Secret exits (`special` with param ≥ 128) | settled | No object in the eight levels has the "special" touch type, so there is nothing to port. |
+| G7 | Weapon heat | chosen | As PyElectroMan: a shot adds heat by weapon level (1, 2, 1, 4, 3 for levels 1-5) and is refused when heat would pass 5; heat falls by one every five ticks; there is no other penalty. DOS check: does overheating do anything else? |
 | G8 | Enemy types 0, 1, 3 vs 2; behaviour after shooting | open | |
 | G9 | In-game music | open | PyElectroMan only plays music on title, level-complete and ending screens. |
 | G10 | Pause, joystick, alternative keys | open | Keys so far: arrows, Up to jump, Space to fire. The controller is read once per tick; a key tapped and released between two ticks still counts for the next one (so short taps are not lost in the browser). |
 | G11 | Killing floor | chosen | As in PyElectroMan: it opens the bottom row of its screen once, removes itself from the level map (the row is solid again on later visits) and sets a flag that makes falling below the last row deadly on every screen until the hero dies. DOS check on `widok` 0. |
 | G12 | Hero movement details | chosen | Ported literally from PyElectroMan, quirks included, and compared tick by tick (`npm run verify-hero`): the hero starts facing right; a jump keeps the walking direction unless another one is held; entering "stand" in mid-air runs the first fall step twice. DOS check: how jumps and falls feel. |
+| G13 | Leaving through the exit | chosen | With three disks, a blinking marker appears above each exit tile; Down on it plays the teleport fade-out, then the next level starts (the level-complete screen comes with step 9). PyElectroMan switches levels at once, before the fade-out. DOS check: does the hero fade out at the exit? |
+| G14 | Checkpoint look | chosen | Checkpoints have two frames, with a neat cross on top and without. The level places the start checkpoint with the cross and all others without, and in DOS a reached checkpoint shows the cross; so the active checkpoint shows the cross frame and the others the plain one. PyElectroMan instead switches to the plain frame and lays a grey diagonal X (info sprite 5) over it; not ported. DOS check: does the previous checkpoint lose its cross? |
+| G15 | Death explosions | chosen | Two explosions, then one more each tick for nine ticks, at random spots over the hero, at the original's offsets in original pixels (PyElectroMan applies them to doubled pixels, which bunches them up); the hero is gone for 70 ticks in all. DOS check by eye. |
+| G16 | Teleport timing | chosen | Fade out (6 ticks), out of sight for 12 ticks, move to the target, fade in (6 ticks), walk on. PyElectroMan fades in at once and then holds the hero frozen for the 12 ticks; in DOS the hero is gone for a while in between and can move soon after appearing, which also fits the original's names (teleport "in", hero_teleport_wait_proc, teleport "out"). The screen changes at the end of the wait. DOS check: on a teleport to another screen, does the new screen show before the hero appears? |
+| G17 | Shots | chosen | As PyElectroMan: one shot per press; level 1 flies one run of its animation (7 ticks), levels 2-5 to the screen edge; a shot stops at a wall (one explosion, three for the level 5 bow) or at the first shootable object, which explodes, and if breakable leaves the sprite after its animation in the level map until the hero dies. Shots do not hit enemies yet (step 8). DOS check: ranges and speeds by eye. |
+
+## PyElectroMan bugs not ported
+
+Found while comparing tick by tick (`npm run verify-hero`); the reference
+run patches each of them out, so the comparison stays exact.
+
+- Removing an object while the objects are being updated skips the next
+  object's update for that tick.
+- Removing an object from the level map deletes the first object at its
+  position, which can be a different object (two stacked in one cell), and
+  a disappearing shot deletes whatever level object sits at its position.
+- Touched objects are de-duplicated with a set, so their effects run in an
+  order that depends on memory addresses.
+- On a tick when the hero changes screens, touch effects (checkpoints, disks,
+  removals, the teleport search) use the new screen's number for an object
+  of the old screen.
+- After a death the level start becomes the checkpoint again (G4).
+- A teleport with no partner in its column of the map loops forever.
+- Firing just before falling into an empty screen crashes; here the shot is
+  lost.

@@ -1,5 +1,6 @@
-// Game page. The hero walks and jumps; touching objects, weapons and
-// enemies come in later steps. The URL hash keeps the place, e.g. #elek/1.
+// Game page. The hero walks, jumps, shoots, uses teleports, collects
+// batteries and disks, dies on killers and leaves through the exit; enemies
+// come in step 8. The URL hash keeps the place, e.g. #elek/1.
 
 import { GAME_LEVELS } from '../data/levels.ts';
 import { loadLevel, loadSpriteSet, type LoadedSpriteSet } from '../data/loader.ts';
@@ -9,6 +10,7 @@ import { Keyboard } from '../platform/keyboard.ts';
 import { startLoop } from '../platform/loop.ts';
 import { roomLayers } from '../render/compose.ts';
 import { createGameDisplay, FRAME_H, FRAME_W, PLAYFIELD_X, PLAYFIELD_Y } from '../render/display.ts';
+import { drawHud } from '../render/hud.ts';
 import { clearPlayfield, drawCell, LevelRenderer } from '../render/level-renderer.ts';
 import type { PixelAspect } from '../render/scale.ts';
 import { heroSprites } from '../sim/hero.ts';
@@ -21,7 +23,7 @@ const toastEl = $<HTMLElement>('toast');
 const fullscreenButton = $<HTMLButtonElement>('fullscreen');
 const display = createGameDisplay($<HTMLCanvasElement>('screen'), $<HTMLDivElement>('fit'));
 const keyboard = new Keyboard();
-const heroSet: Promise<LoadedSpriteSet> = loadSpriteSet('hero');
+const extraSets = Promise.all([loadSpriteSet('hero'), loadSpriteSet('weapons'), loadSpriteSet('info')]);
 
 const settings = {
   get aspect(): PixelAspect {
@@ -34,6 +36,7 @@ const settings = {
 
 let renderer: LevelRenderer | null = null;
 let hero: LoadedSpriteSet | null = null;
+let info: LoadedSpriteSet | null = null;
 let world: World | null = null;
 let levelName: string = GAME_LEVELS[0];
 let shownScreen = -1;
@@ -44,6 +47,19 @@ const loop = startLoop(TICK_HZ, tick, render);
 function tick(): void {
   if (!world) return;
   world.step(keyboard.sample());
+  if (world.completed) {
+    // The level-complete screen comes in step 9.
+    const i = (GAME_LEVELS as readonly string[]).indexOf(levelName);
+    if (i + 1 < GAME_LEVELS.length) {
+      toast('level complete');
+      void openLevel(GAME_LEVELS[i + 1]!);
+    } else {
+      toast('game complete');
+      void openLevel(GAME_LEVELS[0]);
+    }
+    world = null;
+    return;
+  }
   if (world.room.screen !== shownScreen) placeChanged();
   showStatus();
 }
@@ -59,7 +75,7 @@ function render(): void {
     ctx.rect(PLAYFIELD_X, PLAYFIELD_Y, SCREEN_COLS * TILE, SCREEN_ROWS * TILE);
     ctx.clip();
     clearPlayfield(ctx);
-    const { back, front } = roomLayers(world.room, renderer.sprites);
+    const { back, front } = roomLayers(world.room, renderer.sprites, world.activeCheckpointHere());
     renderer.drawOps(ctx, back);
     const pair = world.hero && heroSprites(world.hero);
     if (pair && hero) {
@@ -69,6 +85,10 @@ function render(): void {
       drawCell(ctx, hero.atlas, pair[1], x, y + TILE);
     }
     renderer.drawOps(ctx, front);
+    if (info && world.hero) {
+      const { temp, power, ammo } = world.hero;
+      drawHud(ctx, info.atlas, { temp, power, ammo, disks: world.disks, counter: Math.max(0, world.tick - 1) });
+    }
     ctx.restore();
   }
   display.present();
@@ -78,11 +98,14 @@ async function openLevel(name: string, screen?: number): Promise<void> {
   const ticket = ++loading;
   const level = await loadLevel(name);
   const sets = await Promise.all([loadSpriteSet(level.sets[0]), loadSpriteSet(level.sets[1])]);
-  hero = await heroSet;
+  const [heroSheet, weapons, infoSheet] = await extraSets;
   if (ticket !== loading) return; // a later request won
+  hero = heroSheet;
+  info = infoSheet;
   renderer = new LevelRenderer(level, sets);
+  renderer.sheets = { weapons, info: infoSheet };
   levelName = name;
-  world = new World(level, renderer.sprites, screen === undefined ? {} : { screen });
+  world = new World(level, renderer.sprites, { weapons: weapons.meta, ...(screen === undefined ? {} : { screen }) });
   placeChanged();
 }
 
@@ -100,7 +123,7 @@ function showStatus(): void {
   const h = world.hero;
   status.textContent =
     `${levelName} · screen ${s}${empty} · x ${s % MAP_COLS} y ${Math.floor(s / MAP_COLS)}\n` +
-    (h ? `hero ${h.x},${h.y} · ${h.state}\n` : '') +
+    (h ? `hero ${h.x},${h.y} · ${h.state} · disks ${world.disks} · weapon ${h.power}/${h.ammo}\n` : '') +
     `${loop.hz} ticks/s · tick ${world.tick}${loop.paused ? ' · paused' : ''}`;
   status.style.whiteSpace = 'pre-line';
 }

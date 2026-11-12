@@ -2,8 +2,10 @@
 // Ported from PyElectroMan emdata.py (Level.load, Level.process) and
 // emgame.py (ScreenManager.change_screen, KillingFloor).
 
-import { SCREEN_COLS, SCREEN_ROWS, TILE, type LevelFile } from '../data/types.ts';
+import { SCREEN_COLS, SCREEN_ROWS, TILE, type LevelFile, type SpriteSetFile } from '../data/types.ts';
+import { solidBoxes, type SolidBox } from './collision.ts';
 import { createObject, updateObject, type ObjectContext, type SimObject } from './objects.ts';
+import { updateShot } from './weapons.ts';
 import { initScreenRandoms, type BorlandRandom } from './random.ts';
 import { ACTION_TELEPORT, classifyTile, type LevelSprites } from './tiles.ts';
 
@@ -68,18 +70,16 @@ export interface Room {
   killingFloor: boolean;
 }
 
-/** Where an object was removed from the level map. */
-export interface MapRemoval {
-  x: number;
-  y: number;
-}
+/** An object removed from the level map, by its place in the screen's creation order. */
+export type MapRemoval = number;
 
 /**
  * Build a screen's room in its starting state. The generator is seeded from
  * the screen number before the objects are created and again afterwards, as
  * PyElectroMan does when it loads a level and when it enters a screen.
- * Objects removed from the level map earlier (`removed`) are left out: for
- * each removal, the first object at that position.
+ * Objects removed from the level map earlier (`removed`) are left out, and
+ * objects added to it during play (`added`, remains of destroyed objects)
+ * come after the level's own.
  */
 export function enterRoom(
   level: LevelFile,
@@ -87,37 +87,69 @@ export function enterRoom(
   rng: BorlandRandom,
   screen: number,
   removed: readonly MapRemoval[] = [],
+  added: readonly SimObject[] = [],
 ): Room {
   const layout = screenLayout(level, sprites, screen);
   const randoms = initScreenRandoms(rng, screen);
-  const ctx: ObjectContext = { sprites, rng, randoms };
-  const objects = layout.objects.map((t) => createObject(t.sprite, t.x, t.y, ctx));
+  const ctx: ObjectContext = { sprites, rng, randoms, disks: 0, counter: 0 };
+  // All objects are created, removed ones too, so the generator runs as it did at level load.
+  const created = layout.objects.map((t, id) => createObject(t.sprite, t.x, t.y, ctx, id));
   initScreenRandoms(rng, screen);
-  for (const r of removed) {
-    const i = objects.findIndex((o) => o.x === r.x && o.y === r.y);
-    if (i >= 0) objects.splice(i, 1);
-  }
+  const objects = [...created.filter((o) => !removed.includes(o.id)), ...added.map((o) => structuredClone(o))];
   return { screen, background: layout.background, solid: layout.solid, objects, randoms, killingFloor: false };
 }
 
+/** What a room's tick needs from the world around it. */
+export interface RoomWorld {
+  disks: number;
+  counter: number;
+  /** Weapons sprite set (shot collision boxes). */
+  weapons: SpriteSetFile | null;
+  /** An object of this room left the level map for good (until the hero dies). */
+  removeFromMap(o: SimObject): void;
+  /** An object made during play joins the level map (remains of a destroyed object). */
+  addToMap(o: SimObject): void;
+}
+
+const NO_WORLD: RoomWorld = { disks: 0, counter: 0, weapons: null, removeFromMap: () => {}, addToMap: () => {} };
+
 /**
- * One tick of the room's objects, in creation order. Returns the objects
- * that removed themselves from the level map during the tick.
+ * One tick of the room's objects, in order; objects made during the tick
+ * (explosions, remains) run in the same tick, removed ones do not.
  */
-export function stepRoom(room: Room, sprites: LevelSprites, rng: BorlandRandom): SimObject[] {
-  const ctx: ObjectContext = { sprites, rng, randoms: room.randoms };
+export function stepRoom(room: Room, sprites: LevelSprites, rng: BorlandRandom, world: RoomWorld = NO_WORLD): void {
+  const ctx: ObjectContext = { sprites, rng, randoms: room.randoms, disks: world.disks, counter: world.counter };
+  let solids: SolidBox[] | null = null;
+  const shots = {
+    sprites,
+    weapons: world.weapons,
+    solids: () => (solids ??= solidBoxes(room, sprites)),
+    objects: room.objects,
+    destroy: (o: SimObject) => {
+      o.removed = true;
+      world.removeFromMap(o);
+    },
+    leave: (o: SimObject) => {
+      room.objects.push(o);
+      world.addToMap(o);
+    },
+  };
   for (const o of room.objects) {
+    if (o.removed) continue;
     if (o.kind === 'killingFloor') {
       // Opens the bottom row: the hero dies by falling out of the screen (EB_ENEM.C:486-492).
       room.killingFloor = true;
       room.solid = room.solid.filter((t) => t.y < (SCREEN_ROWS - 1) * TILE);
+      solids = null;
       o.removed = true;
+      world.removeFromMap(o);
+    } else if (o.kind === 'shot') {
+      updateShot(o, shots);
     } else {
-      updateObject(o, ctx);
+      const made = updateObject(o, ctx);
+      if (made) room.objects.push(made);
     }
   }
   // Removed after the loop: PyElectroMan removes during iteration and skips the next object's update.
-  const gone = room.objects.filter((o) => o.removed);
-  if (gone.length) room.objects = room.objects.filter((o) => !o.removed);
-  return gone;
+  if (room.objects.some((o) => o.removed)) room.objects = room.objects.filter((o) => !o.removed);
 }

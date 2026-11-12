@@ -3,16 +3,19 @@
 
 import { hasFlag } from '../data/sprite-status.ts';
 import { SCREEN_COLS, SCREEN_ROWS, TILE, type LevelFile } from '../data/types.ts';
-import { objectSprite } from '../sim/objects.ts';
+import { ACTION, objectSprite, type Sheet } from '../sim/objects.ts';
 import { screenLayout, type PlacedTile, type Room } from '../sim/room.ts';
+import { shotSprites } from '../sim/weapons.ts';
 import type { LevelSprites } from '../sim/tiles.ts';
 
 export interface DrawOp {
-  /** Level sprite index 1..127. */
+  /** Level sprite index 1..127, or an index into `sheet`. */
   sprite: number;
   /** Position inside the playfield, original pixels. */
   x: number;
   y: number;
+  /** Another sprite set than the level's (explosions, the checkpoint mark). */
+  sheet?: Sheet;
 }
 
 /**
@@ -43,6 +46,10 @@ export function sceneLayers(sprites: LevelSprites, groups: readonly (readonly Dr
   const layers: SceneLayers = { back: [], front: [] };
   for (const group of groups) {
     for (const op of group) {
+      if (op.sheet) {
+        layers.back.push(op); // explosions and marks are never "in front"
+        continue;
+      }
       const info = sprites.get(op.sprite);
       if (info) (hasFlag(info, 'inFront') ? layers.front : layers.back).push(op);
     }
@@ -50,12 +57,26 @@ export function sceneLayers(sprites: LevelSprites, groups: readonly (readonly Dr
   return layers;
 }
 
-/** Draw order for a room in play: objects show their current frame, hidden ones are skipped. */
-export function roomLayers(room: Room, sprites: LevelSprites): SceneLayers {
+/**
+ * Draw order for a room in play: objects show their current frame, hidden
+ * ones are skipped. Checkpoints have two frames, with and without a cross on
+ * top; the level places the start with the cross and the others without, so
+ * the active checkpoint (`active`, if on this screen) shows the cross and the
+ * others do not (fidelity G14).
+ */
+export function roomLayers(room: Room, sprites: LevelSprites, active: { x: number; y: number } | null = null): SceneLayers {
   const objects: DrawOp[] = [];
   for (const o of room.objects) {
-    const sprite = objectSprite(o);
-    if (sprite !== null) objects.push({ sprite, x: o.x, y: o.y });
+    let sprite = objectSprite(o);
+    if (sprite === null) continue;
+    if (o.action === ACTION.checkpoint && !o.sheet) {
+      sprite = active && o.x === active.x && o.y === active.y ? o.frames[0]! : o.frames.at(-1)!;
+    }
+    if (o.kind === 'shot') {
+      shotSprites(o).forEach((s, i) => objects.push({ sprite: s, x: o.x, y: o.y + i * TILE, sheet: 'weapons' }));
+      continue;
+    }
+    objects.push({ sprite, x: o.x, y: o.y, ...(o.sheet ? { sheet: o.sheet } : {}) });
   }
   return sceneLayers(sprites, [room.background, room.solid, objects]);
 }

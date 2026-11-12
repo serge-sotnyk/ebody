@@ -37,8 +37,8 @@ export const ACTION = {
 
 /**
  * How an object behaves each tick. 'static' covers objects that do not
- * animate on their own (displays, teleports, checkpoints, exits) and, until
- * later steps port them, rockets, enemies and cannons.
+ * animate on their own (displays, teleports, checkpoints) and, until later
+ * steps port them, rockets, enemies and cannons.
  */
 export type ObjectKind =
   | 'static'
@@ -50,10 +50,35 @@ export type ObjectKind =
   | 'flashPlus'
   | 'flashSpecial'
   | 'monitor'
-  | 'killingFloor';
+  | 'killingFloor'
+  /** Shows a blinking indicator above itself once three disks are collected. */
+  | 'exit'
+  /** The blinking indicator above an exit; touching it with Down ends the level. */
+  | 'exitIndicator'
+  /** Eight frames from the weapons sprite set, then gone. */
+  | 'explosion'
+  /** A shot from the hero's weapon (weapons.ts). */
+  | 'shot'
+  /** What a destroyed object leaves behind; it stays in the level map. */
+  | 'broken';
+
+/** Sprite sets other than the level's own two. */
+export type Sheet = 'weapons' | 'info';
 
 export interface SimObject {
   kind: ObjectKind;
+  /**
+   * Position in the screen's creation order (screenLayout().objects), used to
+   * remove it from the level map; -1 for objects made during play.
+   */
+  id: number;
+  /** Sprite set of `frames`, when not the level's. */
+  sheet?: Sheet;
+  /** The sprite placed in the level for this object; null for objects made during play. */
+  placed: number | null;
+  /** Shots: pixels moved per tick (negative to the left) and weapon level 1..5. */
+  step?: number;
+  level?: number;
   /** Action code of the placed sprite. */
   action: number;
   /** Top-left corner in the playfield, original pixels. */
@@ -73,7 +98,7 @@ export interface SimObject {
   emptyDelay: number;
   /** Monitor: ticks left of a special animation frame. */
   counter: number;
-  /** Set when the object removes itself (killing floor). */
+  /** Set when the object is gone (a killing floor that fired, a finished explosion). */
   removed: boolean;
 }
 
@@ -82,6 +107,10 @@ export interface ObjectContext {
   rng: BorlandRandom;
   /** Per-screen random bytes, one per tile column (initScreenRandoms). */
   randoms: readonly number[];
+  /** Disks collected so far (exits wait for three). */
+  disks: number;
+  /** The main tick counter (blinking). */
+  counter: number;
 }
 
 const param = (sprites: LevelSprites, index: number | undefined): number =>
@@ -98,7 +127,7 @@ export const TOUCH = { none: 0, battery: 1, teleport: 2, checkpoint: 3, killer: 
 /** Status of the current frame (a hidden "plus" animation keeps its last frame, as in PyElectroMan). */
 const currentInfo = (o: SimObject, sprites: LevelSprites): SpriteInfo | null => {
   const index = o.frames.at(o.frame);
-  return index === undefined ? null : sprites.get(index);
+  return index === undefined || o.sheet ? null : sprites.get(index);
 };
 
 /**
@@ -113,6 +142,7 @@ export function objectTouchable(o: SimObject, sprites: LevelSprites): boolean {
 
 /** Touch type of the current frame; hidden "plus" animations and flash+ report none. */
 export function objectTouch(o: SimObject, sprites: LevelSprites): number {
+  if (o.kind === 'exitIndicator') return TOUCH.exit;
   if ((o.kind === 'cyclePlus' || o.kind === 'pulsePlus' || o.kind === 'flashPlus') && !o.show) return TOUCH.none;
   return currentInfo(o, sprites)?.touch ?? TOUCH.none;
 }
@@ -123,13 +153,45 @@ export function objectBox(o: SimObject, sprites: LevelSprites): { x: number; y: 
   return { x: o.x + b.x, y: o.y + b.y, w: b.w, h: b.h };
 }
 
+/** A still object made during play: what a destroyed object leaves behind. */
+export function createBroken(frames: number[], frame: number, x: number, y: number): SimObject {
+  return { ...blank(-1, 0, x, y, frames), kind: 'broken', frame };
+}
+
+/** Explosion sprites: weapons set 0..7 (PyElectroMan emother.Weapons). */
+const EXPLOSION_FRAMES = [0, 1, 2, 3, 4, 5, 6, 7];
+
+/** An explosion with its top-left corner at (x, y) (EB_ENEM.C put_explosion). */
+export function createExplosion(x: number, y: number): SimObject {
+  return { ...blank(-1, 0, x, y, EXPLOSION_FRAMES), kind: 'explosion', sheet: 'weapons' };
+}
+
+export const blank = (id: number, action: number, x: number, y: number, frames: number[]): SimObject => ({
+  kind: 'static',
+  id,
+  placed: null,
+  action,
+  x,
+  y,
+  frames,
+  frame: 0,
+  delay: 0,
+  show: true,
+  dir: 1,
+  emptyDelay: 0,
+  counter: 0,
+  removed: false,
+});
+
 /** Create the object for a placed active tile (emdata.py Level.__get_active_entity). */
-export function createObject(index: number, x: number, y: number, ctx: ObjectContext): SimObject {
+export function createObject(index: number, x: number, y: number, ctx: ObjectContext, id = -1): SimObject {
   const { sprites } = ctx;
   const info = sprites.get(index);
   const action = info?.action ?? 0;
   const o: SimObject = {
     kind: 'static',
+    id,
+    placed: index,
     action,
     x,
     y,
@@ -185,6 +247,9 @@ export function createObject(index: number, x: number, y: number, ctx: ObjectCon
       o.frames = anim();
       o.frame = index - first;
       break;
+    case ACTION.exit:
+      o.kind = 'exit';
+      break;
     case ACTION.killingFloor:
       o.kind = 'killingFloor';
       break;
@@ -236,11 +301,34 @@ function setInitialDelay(o: SimObject, mode: number, p: number, ctx: ObjectConte
   }
 }
 
-/** Advance an animated object by one tick. Static objects and killing floors are handled by the caller. */
-export function updateObject(o: SimObject, ctx: ObjectContext): void {
+/**
+ * Advance an object by one tick. Returns a new object it made (an exit's
+ * indicator). Killing floors are handled by the caller.
+ */
+export function updateObject(o: SimObject, ctx: ObjectContext): SimObject | null {
   const { sprites, rng } = ctx;
   const n = o.frames.length;
   const frameParam = (): number => param(sprites, o.frames.at(o.frame));
+
+  switch (o.kind) {
+    case 'explosion':
+      o.frame += 1;
+      if (o.frame >= n) o.removed = true;
+      return null;
+    case 'exit':
+      // emgame.py Exit.update: once, when the third disk is in.
+      if (ctx.disks >= 3 && o.counter === 0 && sprites.get(o.frames[0]! + 1)) {
+        o.counter = 1;
+        return { ...blank(-1, 0, o.x, o.y - TILE, [o.frames[0]! + 1]), kind: 'exitIndicator' };
+      }
+      return null;
+    case 'exitIndicator':
+      // Shown every other four ticks (ExitIndicator.display: counter & 4).
+      o.show = (ctx.counter & 0x04) !== 0;
+      return null;
+    default:
+      break;
+  }
 
   if (o.kind === 'monitor') {
     // Flicker between the first two frames; rarely play a longer "special" frame.
@@ -255,12 +343,12 @@ export function updateObject(o: SimObject, ctx: ObjectContext): void {
       o.counter -= 1;
       if (o.counter === 0) o.frame = 0;
     }
-    return;
+    return null;
   }
 
   if (o.delay > 0) {
     o.delay -= 1;
-    return;
+    return null;
   }
 
   switch (o.kind) {
@@ -316,4 +404,5 @@ export function updateObject(o: SimObject, ctx: ObjectContext): void {
     default:
       break;
   }
+  return null;
 }

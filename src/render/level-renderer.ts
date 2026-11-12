@@ -1,5 +1,6 @@
 import type { LoadedSpriteSet } from '../data/loader.ts';
 import { ATLAS_COLUMNS, SCREEN_COLS, SCREEN_ROWS, SET_SIZE, TILE, type LevelFile } from '../data/types.ts';
+import type { Sheet } from '../sim/objects.ts';
 import { classifyTile, LevelSprites } from '../sim/tiles.ts';
 import { composeScreen, type DrawOp, type LayerOrder } from './compose.ts';
 import { PLAYFIELD_X, PLAYFIELD_Y } from './display.ts';
@@ -35,9 +36,20 @@ export class LevelRenderer {
     return ops;
   }
 
-  /** Draw level sprites in the given order. */
+  /** Other sprite sets that draw ops may refer to (DrawOp.sheet). */
+  sheets: Partial<Record<Sheet, LoadedSpriteSet>> = {};
+
+  /** Draw sprites in the given order. */
   drawOps(ctx: CanvasRenderingContext2D, ops: readonly DrawOp[]): void {
-    for (const op of ops) this.drawSprite(ctx, op.sprite, PLAYFIELD_X + op.x, PLAYFIELD_Y + op.y);
+    for (const op of ops) {
+      const x = PLAYFIELD_X + op.x;
+      const y = PLAYFIELD_Y + op.y;
+      if (!op.sheet) this.drawSprite(ctx, op.sprite, x, y);
+      else {
+        const sheet = this.sheets[op.sheet];
+        if (sheet) drawCell(ctx, sheet.atlas, op.sprite, x, y);
+      }
+    }
   }
 
   drawSprite(ctx: CanvasRenderingContext2D, index: number, x: number, y: number): void {

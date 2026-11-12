@@ -55,7 +55,7 @@ const sprites = new LevelSprites([
 function ctx(seed = 0, randoms: number[] = new Array(13).fill(0)): ObjectContext {
   const rng = new BorlandRandom();
   rng.srand(seed);
-  return { sprites, rng, randoms };
+  return { sprites, rng, randoms, disks: 0, counter: 0 };
 }
 
 /** Sprite shown after each of `n` ticks. */

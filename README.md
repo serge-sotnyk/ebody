@@ -10,8 +10,9 @@ today:
 
 - the game page: every level running at 20 ticks a second with its animated
   objects, scaled to the whole window, with fullscreen; the hero walks,
-  jumps, falls, uses teleports and moves between screens (other objects,
-  weapons and enemies do not react to it yet);
+  jumps, shoots, uses teleports, collects batteries and disks, reaches
+  checkpoints, dies and comes back, and leaves through the exit; the status
+  bars show weapon heat, weapon level and disks (enemies come next);
 - a reproducible converter from the original DOS data files to web formats,
   checked against PyElectroMan's own converted data;
 - object animation and hero movement checked tick by tick against
@@ -41,7 +42,7 @@ Other commands:
 | `npm run preview` | serve `dist/` at http://localhost:4173/ebody/ |
 | `npm run verify-assets` | compare our conversion with PyElectroMan's data; needs a PyElectroMan checkout in `../pyelectroman` or `$PYELECTROMAN_DIR` |
 | `npm run verify-objects` | run PyElectroMan's object code headless and compare every object's animation with ours, tick by tick; also needs Python with pygame (below) |
-| `npm run verify-hero` | play random key sequences from every checkpoint and teleport in PyElectroMan and in our code, and compare the hero's position, state and animation tick by tick; same needs |
+| `npm run verify-hero` | play random key sequences from every checkpoint, teleport and exit in PyElectroMan and in our code, and compare the hero (position, state, animation, weapon), the disks, the checkpoint and every object on the screen tick by tick, through shooting, deaths and level exits; same needs |
 
 `verify-objects` and `verify-hero` look for Python in `../pyelectroman-venv` unless
 `$PYELECTROMAN_PYTHON` names another one. To create that environment:
@@ -79,7 +80,7 @@ original game's art assets under CC BY-SA 4.0.
 **Code** in this repository is licensed under the [MIT licence](LICENSE).
 Parts of it are ported from PyElectroMan (currently the data converters, the
 sprite metadata decoding, the tile classification, the random number
-generator, the object animations, collisions and the hero's movement), so the licence carries both copyright
+generator, the object animations, collisions, the hero and the weapons), so the licence carries both copyright
 lines.
 
 **Game assets** — everything in `assets/`, and everything the converter
