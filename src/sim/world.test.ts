@@ -16,7 +16,7 @@ const sprites = new LevelSprites([
 ]);
 
 const run = (screen: number, ticks: number): World => {
-  const world = new World(level, sprites, screen);
+  const world = new World(level, sprites, { screen, hero: false });
   for (let t = 0; t < ticks; t++) world.step();
   return world;
 };
@@ -40,7 +40,7 @@ describe('World', () => {
   });
 
   it('runs the upper half of a teleport as its own animation (elek screen 1)', () => {
-    const world = new World(level, sprites, 1);
+    const world = new World(level, sprites, { screen: 1, hero: false });
     const top = world.room.objects.find((o) => o.x === 6 * 24 && o.y === 5 * 24);
     expect(top?.kind).toBe('cycle');
     const seen = new Set<number | null>();

@@ -68,22 +68,43 @@ export interface Room {
   killingFloor: boolean;
 }
 
+/** Where an object was removed from the level map. */
+export interface MapRemoval {
+  x: number;
+  y: number;
+}
+
 /**
  * Build a screen's room in its starting state. The generator is seeded from
  * the screen number before the objects are created and again afterwards, as
  * PyElectroMan does when it loads a level and when it enters a screen.
+ * Objects removed from the level map earlier (`removed`) are left out: for
+ * each removal, the first object at that position.
  */
-export function enterRoom(level: LevelFile, sprites: LevelSprites, rng: BorlandRandom, screen: number): Room {
+export function enterRoom(
+  level: LevelFile,
+  sprites: LevelSprites,
+  rng: BorlandRandom,
+  screen: number,
+  removed: readonly MapRemoval[] = [],
+): Room {
   const layout = screenLayout(level, sprites, screen);
   const randoms = initScreenRandoms(rng, screen);
   const ctx: ObjectContext = { sprites, rng, randoms };
   const objects = layout.objects.map((t) => createObject(t.sprite, t.x, t.y, ctx));
   initScreenRandoms(rng, screen);
+  for (const r of removed) {
+    const i = objects.findIndex((o) => o.x === r.x && o.y === r.y);
+    if (i >= 0) objects.splice(i, 1);
+  }
   return { screen, background: layout.background, solid: layout.solid, objects, randoms, killingFloor: false };
 }
 
-/** One tick of the room's objects, in creation order. */
-export function stepRoom(room: Room, sprites: LevelSprites, rng: BorlandRandom): void {
+/**
+ * One tick of the room's objects, in creation order. Returns the objects
+ * that removed themselves from the level map during the tick.
+ */
+export function stepRoom(room: Room, sprites: LevelSprites, rng: BorlandRandom): SimObject[] {
   const ctx: ObjectContext = { sprites, rng, randoms: room.randoms };
   for (const o of room.objects) {
     if (o.kind === 'killingFloor') {
@@ -96,5 +117,7 @@ export function stepRoom(room: Room, sprites: LevelSprites, rng: BorlandRandom):
     }
   }
   // Removed after the loop: PyElectroMan removes during iteration and skips the next object's update.
-  if (room.objects.some((o) => o.removed)) room.objects = room.objects.filter((o) => !o.removed);
+  const gone = room.objects.filter((o) => o.removed);
+  if (gone.length) room.objects = room.objects.filter((o) => !o.removed);
+  return gone;
 }

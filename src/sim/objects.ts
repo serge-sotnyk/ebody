@@ -6,7 +6,8 @@
 // Frame lookups use Array.prototype.at() on purpose: PyElectroMan indexes with
 // Python lists, where -1 means the last element, and a few edge cases rely on it.
 
-import { TILE } from '../data/types.ts';
+import { FLAG } from '../data/sprite-status.ts';
+import { TILE, type SpriteInfo } from '../data/types.ts';
 import type { BorlandRandom } from './random.ts';
 import type { LevelSprites } from './tiles.ts';
 
@@ -89,6 +90,37 @@ const param = (sprites: LevelSprites, index: number | undefined): number =>
 /** The sprite an object shows now, or null when it is hidden. */
 export function objectSprite(o: SimObject): number | null {
   return o.show ? (o.frames.at(o.frame) ?? null) : null;
+}
+
+/** What touching an object does (status byte 3). */
+export const TOUCH = { none: 0, battery: 1, teleport: 2, checkpoint: 3, killer: 4, floppy: 5, exit: 6, special: 7 } as const;
+
+/** Status of the current frame (a hidden "plus" animation keeps its last frame, as in PyElectroMan). */
+const currentInfo = (o: SimObject, sprites: LevelSprites): SpriteInfo | null => {
+  const index = o.frames.at(o.frame);
+  return index === undefined ? null : sprites.get(index);
+};
+
+/**
+ * Can the hero touch this object now? Hidden cycle+/pulse+ animations cannot
+ * be touched; hidden flashes can (Entity.is_touchable and its overrides).
+ */
+export function objectTouchable(o: SimObject, sprites: LevelSprites): boolean {
+  if ((o.kind === 'cyclePlus' || o.kind === 'pulsePlus') && !o.show) return false;
+  const info = currentInfo(o, sprites);
+  return info !== null && (info.flags & FLAG.touchable) !== 0;
+}
+
+/** Touch type of the current frame; hidden "plus" animations and flash+ report none. */
+export function objectTouch(o: SimObject, sprites: LevelSprites): number {
+  if ((o.kind === 'cyclePlus' || o.kind === 'pulsePlus' || o.kind === 'flashPlus') && !o.show) return TOUCH.none;
+  return currentInfo(o, sprites)?.touch ?? TOUCH.none;
+}
+
+/** Collision box of the current frame, in playfield pixels. */
+export function objectBox(o: SimObject, sprites: LevelSprites): { x: number; y: number; w: number; h: number } {
+  const b = currentInfo(o, sprites)?.bbox ?? { x: 0, y: 0, w: 0, h: 0 };
+  return { x: o.x + b.x, y: o.y + b.y, w: b.w, h: b.h };
 }
 
 /** Create the object for a placed active tile (emdata.py Level.__get_active_entity). */

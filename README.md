@@ -9,11 +9,13 @@ without installation. Extending the game comes later.
 today:
 
 - the game page: every level running at 20 ticks a second with its animated
-  objects, scaled to the whole window, with fullscreen; there is no hero yet,
-  so the arrow keys move between screens;
+  objects, scaled to the whole window, with fullscreen; the hero walks,
+  jumps, falls, uses teleports and moves between screens (other objects,
+  weapons and enemies do not react to it yet);
 - a reproducible converter from the original DOS data files to web formats,
   checked against PyElectroMan's own converted data;
-- object animation checked tick by tick against PyElectroMan run headless;
+- object animation and hero movement checked tick by tick against
+  PyElectroMan run headless;
 - a level viewer (every screen of every level, with collision boxes);
 - a sprite viewer (decoded sprite metadata, sounds, title screens).
 
@@ -39,8 +41,9 @@ Other commands:
 | `npm run preview` | serve `dist/` at http://localhost:4173/ebody/ |
 | `npm run verify-assets` | compare our conversion with PyElectroMan's data; needs a PyElectroMan checkout in `../pyelectroman` or `$PYELECTROMAN_DIR` |
 | `npm run verify-objects` | run PyElectroMan's object code headless and compare every object's animation with ours, tick by tick; also needs Python with pygame (below) |
+| `npm run verify-hero` | play random key sequences from every checkpoint and teleport in PyElectroMan and in our code, and compare the hero's position, state and animation tick by tick; same needs |
 
-`verify-objects` looks for Python in `../pyelectroman-venv` unless
+`verify-objects` and `verify-hero` look for Python in `../pyelectroman-venv` unless
 `$PYELECTROMAN_PYTHON` names another one. To create that environment:
 
 ```bash
@@ -57,7 +60,7 @@ The site is built for the base path `/ebody/` (GitHub Pages project site).
 | `src/data/` | asset formats and loading |
 | `src/sim/` | game logic at a fixed 20 ticks a second, independent of the browser |
 | `src/render/` | drawing into the 320×200 frame and scaling it to the window |
-| `src/platform/` | browser services: game loop, fullscreen |
+| `src/platform/` | browser services: game loop, keyboard, fullscreen |
 | `src/shell/` | the game page |
 | `src/viewer/` | level and sprite viewer pages |
 | `tools/convert/` | asset converter and its verification |
@@ -76,7 +79,7 @@ original game's art assets under CC BY-SA 4.0.
 **Code** in this repository is licensed under the [MIT licence](LICENSE).
 Parts of it are ported from PyElectroMan (currently the data converters, the
 sprite metadata decoding, the tile classification, the random number
-generator and the object animations), so the licence carries both copyright
+generator, the object animations, collisions and the hero's movement), so the licence carries both copyright
 lines.
 
 **Game assets** — everything in `assets/`, and everything the converter

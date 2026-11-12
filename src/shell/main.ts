@@ -1,16 +1,17 @@
-// Game page. Until the hero arrives (step 4) this is an explore mode: the
-// levels run with their animated objects and the arrows move between screens.
-// The URL hash keeps the place, e.g. #elek/1.
+// Game page. The hero walks and jumps; touching objects, weapons and
+// enemies come in later steps. The URL hash keeps the place, e.g. #elek/1.
 
-import { GAME_LEVELS, startScreen } from '../data/levels.ts';
-import { loadLevel, loadSpriteSet } from '../data/loader.ts';
-import { MAP_COLS, MAP_ROWS } from '../data/types.ts';
+import { GAME_LEVELS } from '../data/levels.ts';
+import { loadLevel, loadSpriteSet, type LoadedSpriteSet } from '../data/loader.ts';
+import { MAP_COLS, MAP_ROWS, SCREEN_COLS, SCREEN_ROWS, TILE } from '../data/types.ts';
 import { fullscreenAvailable, toggleFullscreen } from '../platform/fullscreen.ts';
+import { Keyboard } from '../platform/keyboard.ts';
 import { startLoop } from '../platform/loop.ts';
 import { roomLayers } from '../render/compose.ts';
-import { createGameDisplay, FRAME_H, FRAME_W } from '../render/display.ts';
-import { LevelRenderer } from '../render/level-renderer.ts';
+import { createGameDisplay, FRAME_H, FRAME_W, PLAYFIELD_X, PLAYFIELD_Y } from '../render/display.ts';
+import { clearPlayfield, drawCell, LevelRenderer } from '../render/level-renderer.ts';
 import type { PixelAspect } from '../render/scale.ts';
+import { heroSprites } from '../sim/hero.ts';
 import { TICK_HZ, World } from '../sim/world.ts';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -19,6 +20,8 @@ const status = $<HTMLElement>('status');
 const toastEl = $<HTMLElement>('toast');
 const fullscreenButton = $<HTMLButtonElement>('fullscreen');
 const display = createGameDisplay($<HTMLCanvasElement>('screen'), $<HTMLDivElement>('fit'));
+const keyboard = new Keyboard();
+const heroSet: Promise<LoadedSpriteSet> = loadSpriteSet('hero');
 
 const settings = {
   get aspect(): PixelAspect {
@@ -30,26 +33,43 @@ const settings = {
 };
 
 let renderer: LevelRenderer | null = null;
+let hero: LoadedSpriteSet | null = null;
 let world: World | null = null;
 let levelName: string = GAME_LEVELS[0];
+let shownScreen = -1;
 let loading = 0;
 
-const loop = startLoop(
-  TICK_HZ,
-  () => {
-    world?.step();
-    showStatus();
-  },
-  render,
-);
+const loop = startLoop(TICK_HZ, tick, render);
+
+function tick(): void {
+  if (!world) return;
+  world.step(keyboard.sample());
+  if (world.room.screen !== shownScreen) placeChanged();
+  showStatus();
+}
 
 function render(): void {
   const { ctx } = display;
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, FRAME_W, FRAME_H);
   if (world && renderer) {
+    // Sprites partly outside the playfield (the hero at an edge) are cut off at its border.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(PLAYFIELD_X, PLAYFIELD_Y, SCREEN_COLS * TILE, SCREEN_ROWS * TILE);
+    ctx.clip();
+    clearPlayfield(ctx);
     const { back, front } = roomLayers(world.room, renderer.sprites);
-    renderer.drawOps(ctx, [...back, ...front]);
+    renderer.drawOps(ctx, back);
+    const pair = world.hero && heroSprites(world.hero);
+    if (pair && hero) {
+      const x = PLAYFIELD_X + world.hero!.x;
+      const y = PLAYFIELD_Y + world.hero!.y;
+      drawCell(ctx, hero.atlas, pair[0], x, y);
+      drawCell(ctx, hero.atlas, pair[1], x, y + TILE);
+    }
+    renderer.drawOps(ctx, front);
+    ctx.restore();
   }
   display.present();
 }
@@ -58,15 +78,17 @@ async function openLevel(name: string, screen?: number): Promise<void> {
   const ticket = ++loading;
   const level = await loadLevel(name);
   const sets = await Promise.all([loadSpriteSet(level.sets[0]), loadSpriteSet(level.sets[1])]);
+  hero = await heroSet;
   if (ticket !== loading) return; // a later request won
   renderer = new LevelRenderer(level, sets);
   levelName = name;
-  world = new World(level, renderer.sprites, screen ?? startScreen(level, renderer.sprites));
+  world = new World(level, renderer.sprites, screen === undefined ? {} : { screen });
   placeChanged();
 }
 
 function placeChanged(): void {
-  history.replaceState(null, '', `#${levelName}/${world?.room.screen ?? 0}`);
+  shownScreen = world?.room.screen ?? 0;
+  history.replaceState(null, '', `#${levelName}/${shownScreen}`);
   showStatus();
   loop.invalidate();
 }
@@ -75,12 +97,15 @@ function showStatus(): void {
   if (!world || help.hidden) return;
   const s = world.room.screen;
   const empty = world.level.screens[s] ? '' : ' (empty)';
+  const h = world.hero;
   status.textContent =
     `${levelName} · screen ${s}${empty} · x ${s % MAP_COLS} y ${Math.floor(s / MAP_COLS)}\n` +
+    (h ? `hero ${h.x},${h.y} · ${h.state}\n` : '') +
     `${loop.hz} ticks/s · tick ${world.tick}${loop.paused ? ' · paused' : ''}`;
   status.style.whiteSpace = 'pre-line';
 }
 
+/** Debug: look at a neighbouring screen; the hero keeps its place on the playfield. */
 function move(dx: number, dy: number): void {
   if (!world) return;
   const x = (world.room.screen % MAP_COLS) + dx;
@@ -109,11 +134,22 @@ function toggleHelp(show = help.hidden): void {
 
 window.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  const actions: Record<string, () => void> = {
+  // Plain arrows and Space are the game controller (platform/keyboard.ts).
+  const screenKeys: Record<string, () => void> = {
     ArrowLeft: () => move(-1, 0),
     ArrowRight: () => move(1, 0),
     ArrowUp: () => move(0, -1),
     ArrowDown: () => move(0, 1),
+  };
+  if (e.key in screenKeys) {
+    if (e.shiftKey) {
+      e.preventDefault();
+      screenKeys[e.key]!();
+    }
+    return;
+  }
+  const actions: Record<string, () => void> = {
+    r: () => void openLevel(levelName),
     '[': () => cycleLevel(-1),
     ']': () => cycleLevel(1),
     f: () => void toggleFullscreen(),

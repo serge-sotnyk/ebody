@@ -43,7 +43,7 @@ for (const name of GAME_LEVELS) {
   let objects = 0;
   let bad = 0;
   for (const [screen, ticks] of Object.entries(screens)) {
-    const world = new World(level, sprites, Number(screen));
+    const world = new World(level, sprites, { screen: Number(screen), hero: false });
     objects += ticks[0]?.length ?? 0;
     for (let t = 0; t < ticks.length; t++) {
       const theirs = ticks[t]!.map(([, x, y, s]) => `${x},${y}:${s}`).join(' ');

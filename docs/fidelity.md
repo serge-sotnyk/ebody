@@ -44,13 +44,15 @@ mapping rather than exactly.
 
 | # | Topic | Status | Notes |
 |---|---|---|---|
-| G1 | Leaving a screen upwards | open | PyElectroMan only exits left, right and down. |
-| G2 | Ducking | open | Listed in PyElectroMan's debug notes but not implemented. |
-| G3 | Objects on re-entering a screen | open | PyElectroMan keeps their state; does the original reset them? Our game page restarts them on every visit for now. |
+| G1 | Leaving a screen upwards | settled | No exit upwards: the way up is a teleport (Down on it), as in DOS. A jump past the top edge goes out of sight and falls back. |
+| G2 | Down key | settled | No ducking. In DOS, Down while standing or walking on a teleport (or an exit) uses it; nothing else (checked in DOS). We do the same, as PyElectroMan does. |
+| G3 | Objects on re-entering a screen | open | PyElectroMan keeps their state; does the original reset them? Our game page restarts their animations on every visit for now. Objects that removed themselves from the level map stay removed until the hero dies, as in PyElectroMan (G11). |
 | G4 | Checkpoint and respawn rules | open | PyElectroMan sends you back to the level start (a bug; fixed in the `kuznetz` fork). |
 | G5 | What "Continue" restores | open | |
 | G6 | Secret exits (`special` with param ≥ 128) | open | PyElectroMan treats them as "game completed", which looks wrong. |
 | G7 | Weapon overheating penalty | open | PyElectroMan only blocks firing. |
 | G8 | Enemy types 0, 1, 3 vs 2; behaviour after shooting | open | |
 | G9 | In-game music | open | PyElectroMan only plays music on title, level-complete and ending screens. |
-| G10 | Pause, joystick, alternative keys | open | |
+| G10 | Pause, joystick, alternative keys | open | Keys so far: arrows, Up to jump, Space to fire. The controller is read once per tick; a key tapped and released between two ticks still counts for the next one (so short taps are not lost in the browser). |
+| G11 | Killing floor | chosen | As in PyElectroMan: it opens the bottom row of its screen once, removes itself from the level map (the row is solid again on later visits) and sets a flag that makes falling below the last row deadly on every screen until the hero dies. DOS check on `widok` 0. |
+| G12 | Hero movement details | chosen | Ported literally from PyElectroMan, quirks included, and compared tick by tick (`npm run verify-hero`): the hero starts facing right; a jump keeps the walking direction unless another one is held; entering "stand" in mid-air runs the first fall step twice. DOS check: how jumps and falls feel. |

@@ -38,5 +38,9 @@ jobs:
         env:
           PYELECTROMAN_DIR: .pyelectroman
           PYELECTROMAN_PYTHON: python
+      - run: npm run verify-hero
+        env:
+          PYELECTROMAN_DIR: .pyelectroman
+          PYELECTROMAN_PYTHON: python
       - run: npm test
       - run: npm run build

@@ -4,6 +4,18 @@ import { classifyTile, LevelSprites } from '../sim/tiles.ts';
 import { composeScreen, type DrawOp, type LayerOrder } from './compose.ts';
 import { PLAYFIELD_X, PLAYFIELD_Y } from './display.ts';
 
+export function clearPlayfield(ctx: CanvasRenderingContext2D): void {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(PLAYFIELD_X, PLAYFIELD_Y, SCREEN_COLS * TILE, SCREEN_ROWS * TILE);
+}
+
+/** Draw one 24x24 sprite from an atlas (8 sprites per row). */
+export function drawCell(ctx: CanvasRenderingContext2D, atlas: CanvasImageSource, cell: number, x: number, y: number): void {
+  const sx = (cell % ATLAS_COLUMNS) * TILE;
+  const sy = Math.floor(cell / ATLAS_COLUMNS) * TILE;
+  ctx.drawImage(atlas, sx, sy, TILE, TILE, x, y, TILE, TILE);
+}
+
 /** Draws a level's sprites from its two atlases. */
 export class LevelRenderer {
   readonly sprites: LevelSprites;
@@ -18,23 +30,18 @@ export class LevelRenderer {
   /** Static picture of a screen, tiles as placed in the level. */
   drawScreen(ctx: CanvasRenderingContext2D, screen: number, order: LayerOrder): DrawOp[] {
     const { ops } = composeScreen(this.level, this.sprites, screen, order);
+    clearPlayfield(ctx);
     this.drawOps(ctx, ops);
     return ops;
   }
 
-  /** Clear the playfield and draw sprites in the given order. */
+  /** Draw level sprites in the given order. */
   drawOps(ctx: CanvasRenderingContext2D, ops: readonly DrawOp[]): void {
-    ctx.fillStyle = '#000';
-    ctx.fillRect(PLAYFIELD_X, PLAYFIELD_Y, SCREEN_COLS * TILE, SCREEN_ROWS * TILE);
     for (const op of ops) this.drawSprite(ctx, op.sprite, PLAYFIELD_X + op.x, PLAYFIELD_Y + op.y);
   }
 
   drawSprite(ctx: CanvasRenderingContext2D, index: number, x: number, y: number): void {
-    const set = this.sets[index < SET_SIZE ? 0 : 1];
-    const cell = index % SET_SIZE;
-    const sx = (cell % ATLAS_COLUMNS) * TILE;
-    const sy = Math.floor(cell / ATLAS_COLUMNS) * TILE;
-    ctx.drawImage(set.atlas, sx, sy, TILE, TILE, x, y, TILE, TILE);
+    drawCell(ctx, this.sets[index < SET_SIZE ? 0 : 1].atlas, index % SET_SIZE, x, y);
   }
 
   /** Debug overlay: collision boxes of solid tiles (magenta) and objects (cyan); dashed sides are not solid. */
