@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sprite viewer</title>
+    <link rel="stylesheet" href="/src/viewer/viewer.css" />
+    <style>
+      main {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        padding: 16px;
+      }
+      #grid {
+        width: min(100%, 576px);
+        height: auto;
+        background: #000;
+        cursor: crosshair;
+      }
+      #details {
+        flex: 1;
+        min-width: 260px;
+      }
+      #details table {
+        border-collapse: collapse;
+      }
+      #details td {
+        padding: 2px 10px 2px 0;
+        vertical-align: top;
+      }
+      #details td:first-child {
+        color: var(--muted);
+      }
+      section {
+        padding: 0 16px 16px;
+      }
+      #sounds {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      #screens {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      #screens figure {
+        margin: 0;
+      }
+      #screens img {
+        width: 320px;
+        max-width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1><a href="./">Electro Man</a> · sprites</h1>
+      <label>Set <select id="set"></select></label>
+      <label><input type="checkbox" id="boxes" checked /> collision boxes</label>
+      <span class="muted">Click a sprite for details. Dashed box side = not solid.</span>
+    </header>
+    <main>
+      <canvas id="grid" class="pixelated"></canvas>
+      <div id="details"><p class="muted">Select a sprite.</p></div>
+    </main>
+    <section>
+      <h2>Sounds</h2>
+      <div id="sounds"></div>
+    </section>
+    <section>
+      <h2>Screens</h2>
+      <div id="screens"></div>
+    </section>
+    <script type="module" src="/src/viewer/sprites.ts"></script>
+  </body>
+</html>

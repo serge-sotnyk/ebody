@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reference data for verify-assets; pinned to the commit our assets come from.
+      - uses: actions/checkout@v4
+        with:
+          repository: tosiabunio/pyelectroman
+          ref: c4031f05b36f01ef0740c92d41616d94e9a4110f
+          path: .pyelectroman
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run assets
+      - run: npm run verify-assets
+        env:
+          PYELECTROMAN_DIR: .pyelectroman
+      - run: npm test
+      - run: npm run build
