@@ -1,0 +1,144 @@
+:root {
+  color-scheme: dark;
+  --fg: #d7dde6;
+  --muted: #8b95a3;
+  --link: #6cc4ff;
+  --panel: rgb(14 17 22 / 0.88);
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+body {
+  color: var(--fg);
+  font: 14px/1.45 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: var(--link);
+}
+
+/* The playfield area: the whole window minus notches and rounded corners. */
+#stage {
+  position: fixed;
+  inset: 0;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  touch-action: none;
+  user-select: none;
+}
+
+#fit {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#screen {
+  display: block;
+}
+
+.corner {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 10px);
+  right: calc(env(safe-area-inset-right) + 10px);
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.25);
+  border-radius: 8px;
+  background: rgb(0 0 0 / 0.55);
+  color: var(--fg);
+  cursor: pointer;
+  transition: opacity 0.4s;
+}
+
+.corner.idle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.panel {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 10px);
+  left: calc(env(safe-area-inset-left) + 10px);
+  max-width: min(360px, calc(100vw - 80px));
+  max-height: calc(100% - 20px);
+  overflow: auto;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--panel);
+  border: 1px solid rgb(255 255 255 / 0.12);
+}
+
+.panel[hidden] {
+  display: none;
+}
+
+.panel h1 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.panel p {
+  margin: 8px 0 0;
+}
+
+.panel table {
+  margin-top: 8px;
+  border-collapse: collapse;
+}
+
+.panel td {
+  padding: 1px 0;
+  vertical-align: top;
+}
+
+.panel td:first-child {
+  padding-right: 14px;
+  white-space: nowrap;
+  font-family: ui-monospace, Menlo, monospace;
+  color: var(--fg);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 12px;
+}
+
+.status {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 16px);
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--panel);
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.toast.show {
+  opacity: 1;
+}

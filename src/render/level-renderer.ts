@@ -4,7 +4,7 @@ import { classifyTile, LevelSprites } from '../sim/tiles.ts';
 import { composeScreen, type DrawOp, type LayerOrder } from './compose.ts';
 import { PLAYFIELD_X, PLAYFIELD_Y } from './display.ts';
 
-/** Draws static level screens (tiles as placed, no animation yet). */
+/** Draws a level's sprites from its two atlases. */
 export class LevelRenderer {
   readonly sprites: LevelSprites;
 
@@ -15,12 +15,18 @@ export class LevelRenderer {
     this.sprites = new LevelSprites([sets[0].meta, sets[1].meta]);
   }
 
+  /** Static picture of a screen, tiles as placed in the level. */
   drawScreen(ctx: CanvasRenderingContext2D, screen: number, order: LayerOrder): DrawOp[] {
+    const { ops } = composeScreen(this.level, this.sprites, screen, order);
+    this.drawOps(ctx, ops);
+    return ops;
+  }
+
+  /** Clear the playfield and draw sprites in the given order. */
+  drawOps(ctx: CanvasRenderingContext2D, ops: readonly DrawOp[]): void {
     ctx.fillStyle = '#000';
     ctx.fillRect(PLAYFIELD_X, PLAYFIELD_Y, SCREEN_COLS * TILE, SCREEN_ROWS * TILE);
-    const { ops } = composeScreen(this.level, this.sprites, screen, order);
     for (const op of ops) this.drawSprite(ctx, op.sprite, PLAYFIELD_X + op.x, PLAYFIELD_Y + op.y);
-    return ops;
   }
 
   drawSprite(ctx: CanvasRenderingContext2D, index: number, x: number, y: number): void {

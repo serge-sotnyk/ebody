@@ -8,8 +8,12 @@ without installation. Extending the game comes later.
 **Status:** early work in progress. The game is not playable yet. What exists
 today:
 
+- the game page: every level running at 20 ticks a second with its animated
+  objects, scaled to the whole window, with fullscreen; there is no hero yet,
+  so the arrow keys move between screens;
 - a reproducible converter from the original DOS data files to web formats,
   checked against PyElectroMan's own converted data;
+- object animation checked tick by tick against PyElectroMan run headless;
 - a level viewer (every screen of every level, with collision boxes);
 - a sprite viewer (decoded sprite metadata, sounds, title screens).
 
@@ -23,6 +27,9 @@ npm run assets      # convert assets/original -> assets/generated
 npm run dev         # http://localhost:5173/ebody/
 ```
 
+The game page is `/ebody/`; press H there for the keys. The viewers are at
+`/ebody/levels.html` and `/ebody/sprites.html`.
+
 Other commands:
 
 | Command | What it does |
@@ -31,6 +38,15 @@ Other commands:
 | `npm run build` | type-check and build the static site into `dist/` |
 | `npm run preview` | serve `dist/` at http://localhost:4173/ebody/ |
 | `npm run verify-assets` | compare our conversion with PyElectroMan's data; needs a PyElectroMan checkout in `../pyelectroman` or `$PYELECTROMAN_DIR` |
+| `npm run verify-objects` | run PyElectroMan's object code headless and compare every object's animation with ours, tick by tick; also needs Python with pygame (below) |
+
+`verify-objects` looks for Python in `../pyelectroman-venv` unless
+`$PYELECTROMAN_PYTHON` names another one. To create that environment:
+
+```bash
+python3 -m venv ../pyelectroman-venv
+../pyelectroman-venv/bin/pip install -r tools/reference/requirements.txt
+```
 
 The site is built for the base path `/ebody/` (GitHub Pages project site).
 
@@ -39,10 +55,13 @@ The site is built for the base path `/ebody/` (GitHub Pages project site).
 | Path | Contents |
 |---|---|
 | `src/data/` | asset formats and loading |
-| `src/sim/` | game logic, independent of the browser |
-| `src/render/` | drawing into the 320×200 frame |
+| `src/sim/` | game logic at a fixed 20 ticks a second, independent of the browser |
+| `src/render/` | drawing into the 320×200 frame and scaling it to the window |
+| `src/platform/` | browser services: game loop, fullscreen |
+| `src/shell/` | the game page |
 | `src/viewer/` | level and sprite viewer pages |
 | `tools/convert/` | asset converter and its verification |
+| `tools/reference/` | PyElectroMan run headless as a reference for game logic |
 | `assets/original/` | original game data (CC BY-SA) |
 | `assets/generated/` | converter output, not committed |
 | `docs/fidelity.md` | known and suspected differences from the original game |
@@ -56,8 +75,9 @@ original game's art assets under CC BY-SA 4.0.
 
 **Code** in this repository is licensed under the [MIT licence](LICENSE).
 Parts of it are ported from PyElectroMan (currently the data converters, the
-sprite metadata decoding and the tile classification), so the licence
-carries both copyright lines.
+sprite metadata decoding, the tile classification, the random number
+generator and the object animations), so the licence carries both copyright
+lines.
 
 **Game assets** — everything in `assets/`, and everything the converter
 produces from it — are licensed under

@@ -2,34 +2,48 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
     <title>Electro Man</title>
-    <link rel="stylesheet" href="/src/viewer/viewer.css" />
-    <style>
-      main {
-        max-width: 640px;
-        margin: 32px auto;
-        padding: 0 16px;
-      }
-      li {
-        margin: 6px 0;
-      }
-    </style>
+    <link rel="stylesheet" href="/src/shell/shell.css" />
   </head>
   <body>
-    <main>
-      <h1>Electro Man — browser port</h1>
-      <p class="muted">Work in progress. The game itself is not playable yet; these pages show the converted data.</p>
-      <ul>
-        <li><a href="levels.html">Level viewer</a> — every screen of every level, with collision boxes</li>
-        <li><a href="sprites.html">Sprite viewer</a> — sprite sets with decoded metadata, sounds and screens</li>
-      </ul>
-      <p class="muted">
+    <div id="stage">
+      <div id="fit"><canvas id="screen" aria-label="Game screen"></canvas></div>
+    </div>
+
+    <button id="fullscreen" class="corner" type="button" title="Fullscreen (F)" aria-label="Fullscreen" hidden>
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2" />
+      </svg>
+    </button>
+
+    <aside id="help" class="panel">
+      <h1>Electro Man</h1>
+      <p class="muted">Work in progress: the levels with their animated objects. No hero yet.</p>
+      <table>
+        <tr><td>Arrows</td><td>move between screens</td></tr>
+        <tr><td>[ &nbsp;]</td><td>previous / next level</td></tr>
+        <tr><td>F</td><td>fullscreen</td></tr>
+        <tr><td>A</td><td>pixel shape: square / 4:3 monitor</td></tr>
+        <tr><td>P &nbsp;.</td><td>pause / one tick</td></tr>
+        <tr><td>− &nbsp;=</td><td>ticks per second</td></tr>
+        <tr><td>H</td><td>show / hide this panel</td></tr>
+      </table>
+      <p id="status" class="status"></p>
+      <p>
+        <a href="levels.html">Level viewer</a> · <a href="sprites.html">Sprite viewer</a>
+      </p>
+      <p class="muted small">
         Based on <a href="https://github.com/tosiabunio/pyelectroman">PyElectroMan</a>. Game assets © xLand,
         Janusz Pelc, Maciej Miąsik, Daniel Kleczyński, licensed
         <a href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>
         (<a href="data/ATTRIBUTION.md">attribution</a>).
       </p>
-    </main>
+    </aside>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script type="module" src="/src/shell/main.ts"></script>
   </body>
 </html>

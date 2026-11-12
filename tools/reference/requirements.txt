@@ -1,0 +1,2 @@
+# Python packages for running PyElectroMan headless (npm run verify-objects).
+pygame==2.6.1

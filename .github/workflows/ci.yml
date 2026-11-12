@@ -23,10 +23,20 @@ jobs:
           node-version: 22
           cache: npm
 
+      # PyElectroMan itself, run headless as the reference for object behaviour.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r tools/reference/requirements.txt
+
       - run: npm ci
       - run: npm run assets
       - run: npm run verify-assets
         env:
           PYELECTROMAN_DIR: .pyelectroman
+      - run: npm run verify-objects
+        env:
+          PYELECTROMAN_DIR: .pyelectroman
+          PYELECTROMAN_PYTHON: python
       - run: npm test
       - run: npm run build
