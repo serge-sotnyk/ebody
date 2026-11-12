@@ -40,6 +40,22 @@ def boot(root):
     from emglobals import XY
     m = types.SimpleNamespace(gl=gl, da=da, di=di, ga=ga, pl=pl, ot=ot, snd=snd, XY=XY)
     gl.data_folder = "data"
+
+    # Load each sprite set's images once: a trace builds a fresh level and hero
+    # for every scenario, and decoding the PNGs again each time dominated the
+    # run time. Sprites are read-only here, so sharing them changes nothing.
+    load_set = da.SpriteSet.load
+    loaded = {}
+
+    def load_set_once(self, set_name):
+        if set_name not in loaded:
+            load_set(self, set_name)
+            loaded[set_name] = (self.set, self.sprites)
+        self.__init__()
+        self.set, sprites = loaded[set_name]
+        self.sprites = list(sprites)
+
+    da.SpriteSet.load = load_set_once
     gl.enemies = ot.Enemies()
     gl.weapons = ot.Weapons()
     gl.info = ot.Info()
@@ -50,6 +66,9 @@ def boot(root):
 def patch(m, teleport_time=12):
     gl, ga, pl = m.gl, m.ga, m.pl
     m.di.message = lambda *args, **kwargs: None
+    # The debug status line is only emptied when drawn; headless, it would grow
+    # by a few strings every tick and make each append slower (quadratic time).
+    m.di.status_line.add = lambda text: None
     m.snd.play_sound = lambda *args, **kwargs: None
     pl.PlayerEntity.show_hud = lambda self: None
     # handle_touch saves the game at checkpoints through emmenu.
