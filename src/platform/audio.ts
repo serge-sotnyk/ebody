@@ -34,13 +34,29 @@ export class SoundSystem {
   private channels: Channel[] = Array.from({ length: CHANNELS }, () => ({ source: null, priority: 0, ends: 0 }));
   private sfx: GainNode | null = null;
   private music: GainNode | null = null;
+  /** The volume control, after both effects and music. */
+  private master: GainNode | null = null;
   private song: { entries: SongEntry[]; next: number; at: number; sources: AudioBufferSourceNode[]; timer: number } | null =
     null;
   /** Wall-clock start of the current song and its pieces' durations, for songPosition(). */
   private songClock: { start: number; durations: number[] } | null = null;
   private songName: string | null = null;
 
-  constructor(public muted = false) {}
+  /** `volume` 0..1, as the menu's slider shows it. */
+  constructor(
+    public muted = false,
+    private level = 1,
+  ) {}
+
+  get volume(): number {
+    return this.level;
+  }
+
+  /** 0..1; the gain follows its square, closer to how loud it sounds than a straight line. */
+  setVolume(volume: number): void {
+    this.level = Math.min(1, Math.max(0, volume));
+    if (this.master) this.master.gain.value = this.level ** 2;
+  }
 
   /** True once the browser lets the page make sound. */
   get running(): boolean {
@@ -160,11 +176,14 @@ export class SoundSystem {
   private context(): AudioContext {
     if (!this.ctx) {
       this.ctx = new AudioContext();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = this.level ** 2;
+      this.master.connect(this.ctx.destination);
       this.sfx = this.ctx.createGain();
-      this.sfx.connect(this.ctx.destination);
+      this.sfx.connect(this.master);
       this.music = this.ctx.createGain();
       this.music.gain.value = this.muted ? 0 : 1;
-      this.music.connect(this.ctx.destination);
+      this.music.connect(this.master);
     }
     return this.ctx;
   }

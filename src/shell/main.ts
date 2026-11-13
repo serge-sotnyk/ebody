@@ -7,8 +7,9 @@ import { GAME_LEVELS } from '../data/levels.ts';
 import { loadBitmap, loadLevel, loadSpriteSet, type LoadedSpriteSet } from '../data/loader.ts';
 import { END_SONG, LEVEL_SONG, TITLE_SONG, titlePicture } from '../data/songs.ts';
 import { MAP_COLS, MAP_ROWS, SCREEN_COLS, SCREEN_ROWS, TILE } from '../data/types.ts';
+import { applyUpdate, canInstall, install, startApp, updateReady } from '../platform/app.ts';
 import { SoundSystem } from '../platform/audio.ts';
-import { fullscreenAvailable, toggleFullscreen } from '../platform/fullscreen.ts';
+import { fullscreenAvailable, startedFullscreen, toggleFullscreen } from '../platform/fullscreen.ts';
 import { Keyboard } from '../platform/keyboard.ts';
 import { clearSave, loadGame, saveGame } from '../platform/save.ts';
 import { attachTouchPad } from '../platform/touch.ts';
@@ -35,7 +36,7 @@ const touch = attachTouchPad(pad);
 const menuButton = $<HTMLButtonElement>('menuButton');
 const menu = $<HTMLElement>('menu');
 const extraSets = Promise.all([loadSpriteSet('hero'), loadSpriteSet('weapons'), loadSpriteSet('info'), loadSpriteSet('enem')]);
-const sound = new SoundSystem(readSetting('sound') === 'off');
+const sound = new SoundSystem(readSetting('sound') === 'off', savedVolume() / 100);
 const soundReady = sound.load([TITLE_SONG, LEVEL_SONG, END_SONG]);
 const pictures = Promise.all(['tit1', 'tit2', 'back', 'over'].map((n) => loadBitmap(`screens/${n}.png`)));
 const lettersSet = loadSpriteSet('letters');
@@ -250,7 +251,7 @@ function cycleLevel(delta: number): void {
 
 // --- menus --------------------------------------------------------------------
 
-type MenuItem = { label: string; note?: string; action: () => void };
+type MenuItem = { label: string; note?: string; action: () => void; after?: () => HTMLElement };
 
 /** Our own menu: on the title ("main") or during play ("pause"). */
 function showMenu(kind: 'main' | 'pause'): void {
@@ -270,7 +271,7 @@ function showMenu(kind: 'main' | 'pause'): void {
     items.push({ label: 'Resume', action: hideMenu });
     items.push({ label: 'Restart level', action: () => void startLevel(levelName) });
   }
-  items.push({ label: soundLabel(), action: toggleSound });
+  items.push({ label: soundLabel(), action: toggleSound, after: volumeSlider });
   items.push({
     label: 'Keys and help',
     action: () => {
@@ -279,6 +280,19 @@ function showMenu(kind: 'main' | 'pause'): void {
     },
   });
   if (kind === 'pause') items.push({ label: 'Quit to title', action: toTitle });
+  if (kind === 'main' && updateReady()) {
+    items.push({ label: 'Update', note: 'a new version is ready; the game restarts', action: applyUpdate });
+  }
+  if (kind === 'main' && canInstall()) {
+    items.push({
+      label: 'Install app',
+      note: 'full screen, plays offline',
+      action: () => {
+        hideMenu();
+        void install();
+      },
+    });
+  }
 
   const box = menu.querySelector<HTMLElement>('.menu-box')!;
   box.replaceChildren();
@@ -299,6 +313,7 @@ function showMenu(kind: 'main' | 'pause'): void {
       item.action();
     });
     box.append(b);
+    if (item.after) box.append(item.after());
   }
   menu.dataset.kind = kind;
   menu.hidden = false;
@@ -307,6 +322,56 @@ function showMenu(kind: 'main' | 'pause'): void {
 
 function hideMenu(): void {
   menu.hidden = true;
+}
+
+/** Volume in steps of 10%: Left/Right when it has the focus, or a tap or drag along it. */
+function volumeSlider(): HTMLElement {
+  const row = document.createElement('div');
+  row.className = 'menu-slider';
+  row.tabIndex = 0;
+  row.setAttribute('role', 'slider');
+  row.setAttribute('aria-label', 'Volume');
+  row.setAttribute('aria-valuemin', '0');
+  row.setAttribute('aria-valuemax', '100');
+  row.innerHTML = '<span>Volume</span><span class="track"><span class="fill"></span></span><span class="value"></span>';
+  const track = row.querySelector<HTMLElement>('.track')!;
+  const show = (): void => {
+    const percent = Math.round(sound.volume * 100);
+    row.querySelector<HTMLElement>('.fill')!.style.width = `${percent}%`;
+    row.querySelector('.value')!.textContent = `${percent}%`;
+    row.setAttribute('aria-valuenow', String(percent));
+    row.classList.toggle('off', sound.muted);
+  };
+  row.addEventListener('volume', show);
+  const fromPointer = (e: PointerEvent): void => {
+    const r = track.getBoundingClientRect();
+    setVolume(Math.round(((e.clientX - r.left) / r.width) * 10) * 10);
+  };
+  row.addEventListener('pointerdown', (e) => {
+    row.setPointerCapture(e.pointerId);
+    sound.unlock();
+    fromPointer(e);
+  });
+  row.addEventListener('pointermove', (e) => {
+    if (row.hasPointerCapture(e.pointerId)) fromPointer(e);
+  });
+  show();
+  return row;
+}
+
+/** Set the volume (percent), remember it, and let it be heard. */
+function setVolume(percent: number): void {
+  const value = Math.min(100, Math.max(0, percent));
+  if (value === Math.round(sound.volume * 100)) return;
+  sound.setVolume(value / 100);
+  writeSetting('volume', String(value));
+  menu.querySelector('.menu-slider')?.dispatchEvent(new Event('volume'));
+  sound.play('battery');
+}
+
+function savedVolume(): number {
+  const n = Number(readSetting('volume') ?? 100);
+  return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 100;
 }
 
 function soundLabel(): string {
@@ -321,12 +386,15 @@ function toggleSound(): void {
   if (!sound.muted) sound.unlock();
 }
 
-/** Arrow keys move through the menu; Enter or Space picks; Esc closes it. */
+/** Arrow keys move through the menu (Left/Right set the volume); Enter or Space picks; Esc closes it. */
 function menuKey(e: KeyboardEvent): boolean {
   if (menu.hidden) return false;
-  const buttons = [...menu.querySelectorAll<HTMLButtonElement>('button')];
-  const i = buttons.indexOf(document.activeElement as HTMLButtonElement);
-  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+  const buttons = [...menu.querySelectorAll<HTMLElement>('button, [role=slider]')];
+  const i = buttons.indexOf(document.activeElement as HTMLElement);
+  const onSlider = document.activeElement?.classList.contains('menu-slider');
+  if (onSlider && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    setVolume(Math.round(sound.volume * 10) * 10 + (e.key === 'ArrowRight' ? 10 : -10));
+  } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     const step = e.key === 'ArrowDown' ? 1 : -1;
     buttons[(i + step + buttons.length) % buttons.length]?.focus();
   } else if (e.key === 'Enter' || e.key === ' ') {
@@ -497,7 +565,7 @@ upright.addEventListener('change', followOrientation);
 followOrientation();
 
 // The corner buttons show while the pointer moves or a finger touches, and fade after a while.
-fullscreenButton.hidden = !fullscreenAvailable();
+fullscreenButton.hidden = !fullscreenAvailable() || startedFullscreen();
 let idleTimer = 0;
 const wake = (): void => {
   for (const b of [menuButton, fullscreenButton]) b.classList.remove('idle');
@@ -561,3 +629,4 @@ void Promise.all([pictures, lettersSet]).then(([images, set]) => {
   loop.invalidate();
 });
 if (!openFromHash()) toTitle();
+startApp(() => toast('a new version is ready: Update in the menu'));

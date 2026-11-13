@@ -13,8 +13,9 @@ exists today:
 
 - the game page: the title screen with its music, a menu, the eight levels
   in order with a "level completed" screen between them and the final
-  screen after the last; sound effects; the game saved in the browser at
-  every checkpoint (Continue); every level running at 20 ticks a second with
+  screen after the last; sound effects and a volume control; the game saved
+  in the browser at every checkpoint (Continue); installable as an app (PWA)
+  that starts full screen and plays offline; every level running at 20 ticks a second with
   its animated objects, scaled to the whole window, with fullscreen; the hero walks,
   jumps, shoots, uses teleports, collects batteries and disks, reaches
   checkpoints, dies and comes back, and leaves through the exit; creatures
@@ -47,9 +48,13 @@ The game page is `/ebody/`; press H there for the keys. The viewers are at
 
 To try it on a phone or tablet in the same network, run `npm run dev:lan`
 and open the "Network" address it prints (`http://<computer's IP>:5173/ebody/`).
-Installing as an app (PWA) needs HTTPS or `localhost`, which plain LAN
-addresses are not; with USB debugging, `adb reverse tcp:5173 tcp:5173` makes
-the phone reach the dev server as `http://localhost:5173/ebody/`.
+
+The app part (web app manifest, icons, the service worker that caches the
+whole site for offline play; `tools/pwa/`) exists only in the built site:
+try it with `npm run build && npm run preview`. Installing needs HTTPS or
+`localhost`, so on a phone use the published site. A new version downloads
+in the background and is switched to at the next start, or from "Update" in
+the menu.
 
 Other commands:
 
@@ -79,11 +84,12 @@ The site is built for the base path `/ebody/`. Every push to `main` publishes it
 | `src/data/` | asset formats and loading |
 | `src/sim/` | game logic at a fixed 20 ticks a second, independent of the browser |
 | `src/render/` | drawing into the 320×200 frame and scaling it to the window |
-| `src/platform/` | browser services: game loop, keyboard, touch buttons, fullscreen, sound, saved game |
+| `src/platform/` | browser services: game loop, keyboard, touch buttons, fullscreen, sound, saved game, installed app |
 | `src/shell/` | the game page |
 | `src/viewer/` | level and sprite viewer pages |
 | `tools/convert/` | asset converter and its verification |
 | `tools/reference/` | PyElectroMan run headless as a reference for game logic |
+| `tools/pwa/` | Vite plugin for the installable app: manifest, icon links, service worker |
 | `assets/original/` | original game data (CC BY-SA) |
 | `assets/generated/` | converter output, not committed |
 | `docs/fidelity.md` | known and suspected differences from the original game |
