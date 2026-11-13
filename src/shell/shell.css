@@ -81,12 +81,16 @@ a {
   font: 600 18px system-ui, sans-serif;
 }
 
-/* Touch buttons, anchored to the bottom corners. The game page keeps room
-   for them beside the picture (phones) or below it (tablets), see main.ts. */
+/* Touch buttons in the room the game page keeps for them (main.ts
+   layoutPad): side strips on phones ("beside"), a strip along the bottom on
+   tablets ("below"). Sizes come from main.ts as custom properties. */
 .pad {
-  --btn: clamp(44px, 15vmin, 80px);
-  --gap: clamp(6px, 2.5vmin, 14px);
-  --arm: calc(var(--btn) * 0.8);
+  --btn: 56px;
+  --big: 56px;
+  --gap: 10px;
+  --side: 0px;
+  --rocker-w: 112px;
+  --rocker-h: 72px;
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -103,33 +107,69 @@ a {
 .cluster {
   position: absolute;
   bottom: calc(env(safe-area-inset-bottom) + var(--gap));
-  display: grid;
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
 }
 
-/* Down above a left/right rocker. */
 .cluster.move {
   left: calc(env(safe-area-inset-left) + var(--gap));
-  grid-template-columns: var(--arm) var(--arm);
-  grid-template-rows: var(--arm) var(--btn);
-  row-gap: var(--gap);
 }
 
-/* Jump above fire. */
 .cluster.act {
   right: calc(env(safe-area-inset-right) + var(--gap));
-  grid-template-columns: var(--btn);
-  grid-template-rows: var(--btn) var(--btn);
-  row-gap: var(--gap);
+}
+
+/* Phones: a column in each side strip, filling its width; bigger buttons. */
+.pad.beside .cluster {
+  flex-direction: column;
+  width: calc(var(--side) - 2 * var(--gap));
+}
+
+.pad.beside .cluster > .btn {
+  width: var(--big);
+  height: var(--big);
+}
+
+/* The rocker starts at the screen edge and may reach over the picture's edge. */
+.pad.beside .cluster.move {
+  align-items: flex-start;
+}
+
+.pad.beside .cluster.move > .btn {
+  align-self: center;
+}
+
+/* Jump, fire and Down spread down the whole right strip, under the corner buttons. */
+.pad.beside .cluster.act {
+  top: calc(env(safe-area-inset-top) + 50px + var(--gap));
+  justify-content: space-between;
+}
+
+/* Tablets: a row in each bottom corner; the rocker sits in the corner. */
+.pad.below .cluster {
+  align-items: flex-end;
+}
+
+.pad.below .cluster.move {
+  flex-direction: row-reverse;
 }
 
 .btn {
   pointer-events: auto;
+  flex: none;
   display: grid;
   place-items: center;
+  width: var(--btn);
+  height: var(--btn);
   border-radius: 14px;
   background: rgb(255 255 255 / 0.1);
   border: 1px solid rgb(255 255 255 / 0.3);
   color: rgb(255 255 255 / 0.75);
+}
+
+.btn.round {
+  border-radius: 50%;
 }
 
 .btn.pressed {
@@ -138,43 +178,31 @@ a {
 }
 
 .btn svg {
-  width: 55%;
-  height: 55%;
+  width: min(55%, 40px);
+  height: min(55%, 40px);
   fill: currentColor;
 }
 
-.b-down {
-  grid-column: 1 / 3;
-  grid-row: 1;
-  justify-self: center;
-  width: var(--btn);
+/* Left and right as one wide rocker. */
+.rocker {
+  display: flex;
+  width: var(--rocker-w);
+  height: var(--rocker-h);
 }
 
-.b-left {
-  grid-column: 1;
-  grid-row: 2;
-  border-radius: 14px 0 0 14px;
+.rocker .btn {
+  flex: 1;
+  width: auto;
+  height: 100%;
 }
 
-.b-right {
-  grid-column: 2;
-  grid-row: 2;
-  border-radius: 0 14px 14px 0;
+.rocker .btn:first-child {
+  border-radius: 16px 0 0 16px;
+}
+
+.rocker .btn:last-child {
+  border-radius: 0 16px 16px 0;
   border-left: none;
-}
-
-.b-jump,
-.b-fire {
-  grid-column: 1;
-  border-radius: 50%;
-}
-
-.b-jump {
-  grid-row: 1;
-}
-
-.b-fire {
-  grid-row: 2;
 }
 
 /* Phones and tablets held upright: the game is played sideways. */

@@ -12,25 +12,35 @@
       <div id="fit"><canvas id="screen" aria-label="Game screen"></canvas></div>
     </div>
 
-    <!-- On-screen buttons for touch screens: walk and Down under the left thumb, jump and fire under the right. -->
+    <!--
+      On-screen buttons for touch screens. Left thumb: walk, with fire above;
+      right thumb: jump, fire and Down (teleports, the exit), top to bottom.
+      Fire is on both sides, so either thumb can shoot while the other walks
+      or jumps.
+    -->
     <div id="pad" class="pad" hidden>
       <div class="cluster move">
-        <div class="btn b-down" data-bit="8" aria-label="Down: use a teleport or the exit">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-7 9z" /></svg>
+        <div class="btn round" data-bit="16" aria-label="Fire">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5" /></svg>
         </div>
-        <div class="btn b-left" data-bit="1" aria-label="Walk left">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5v14l-9-7z" /></svg>
-        </div>
-        <div class="btn b-right" data-bit="2" aria-label="Walk right">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l9-7z" /></svg>
+        <div class="rocker">
+          <div class="btn" data-bit="1" aria-label="Walk left">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5v14l-9-7z" /></svg>
+          </div>
+          <div class="btn" data-bit="2" aria-label="Walk right">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l9-7z" /></svg>
+          </div>
         </div>
       </div>
       <div class="cluster act">
-        <div class="btn b-jump" data-bit="4" aria-label="Jump">
+        <div class="btn round" data-bit="4" aria-label="Jump">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 16h14l-7-9z" /></svg>
         </div>
-        <div class="btn b-fire" data-bit="16" aria-label="Fire">
+        <div class="btn round" data-bit="16" aria-label="Fire">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5" /></svg>
+        </div>
+        <div class="btn" data-bit="8" aria-label="Down: use a teleport or the exit">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-7 9z" /></svg>
         </div>
       </div>
     </div>

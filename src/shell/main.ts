@@ -11,6 +11,7 @@ import { startLoop } from '../platform/loop.ts';
 import { roomLayers } from '../render/compose.ts';
 import { createGameDisplay, FRAME_H, FRAME_W, PLAYFIELD_X, PLAYFIELD_Y } from '../render/display.ts';
 import { drawHud } from '../render/hud.ts';
+import { padLayout } from '../render/pad-layout.ts';
 import { clearPlayfield, drawCell, LevelRenderer } from '../render/level-renderer.ts';
 import type { PixelAspect } from '../render/scale.ts';
 import { heroSprites } from '../sim/hero.ts';
@@ -239,29 +240,21 @@ function showPad(show: boolean): void {
   layoutPad();
 }
 
-/**
- * Keep the touch buttons off the picture: reserve room for them at the sides
- * or along the bottom, whichever leaves the larger picture (sides on phones,
- * bottom on 4:3 tablets).
- */
+/** Size and place the touch buttons, and keep their room free of the picture (pad-layout.ts). */
 function layoutPad(): void {
   const stage = $<HTMLElement>('stage');
   stage.style.padding = '';
+  pad.classList.remove('beside', 'below');
   if (pad.hidden) return;
-  const move = pad.querySelector<HTMLElement>('.cluster.move')!.getBoundingClientRect();
-  const act = pad.querySelector<HTMLElement>('.cluster.act')!.getBoundingClientRect();
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  const side = Math.ceil(Math.max(move.right, w - act.left)) + 4;
-  const bottom = Math.ceil(h - Math.min(move.top, act.top)) + 4;
-  const aspect = display.aspect;
-  const scaleBeside = Math.min((w - 2 * side) / FRAME_W, h / (FRAME_H * aspect));
-  const scaleAbove = Math.min(w / FRAME_W, (h - bottom) / (FRAME_H * aspect));
-  if (scaleBeside >= scaleAbove) {
-    stage.style.paddingLeft = `max(env(safe-area-inset-left), ${side}px)`;
-    stage.style.paddingRight = `max(env(safe-area-inset-right), ${side}px)`;
+  const l = padLayout(window.innerWidth, window.innerHeight, display.aspect);
+  const vars = { btn: l.btn, big: l.big, gap: l.gap, side: l.side, 'rocker-w': l.rockerW, 'rocker-h': l.rockerH };
+  for (const [name, px] of Object.entries(vars)) pad.style.setProperty(`--${name}`, `${px}px`);
+  pad.classList.add(l.mode);
+  if (l.mode === 'beside') {
+    stage.style.paddingLeft = `calc(env(safe-area-inset-left) + ${l.side}px)`;
+    stage.style.paddingRight = `calc(env(safe-area-inset-right) + ${l.side}px)`;
   } else {
-    stage.style.paddingBottom = `max(env(safe-area-inset-bottom), ${bottom}px)`;
+    stage.style.paddingBottom = `calc(env(safe-area-inset-bottom) + ${l.bottom}px)`;
   }
 }
 window.addEventListener('resize', layoutPad);
