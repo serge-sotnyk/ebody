@@ -145,6 +145,20 @@ describe('weapon', () => {
     expect(at(world, 8, 5)).toBeUndefined();
   });
 
+  it('the level 5 bow flies over a flat floor to the wall, its box clear of the floor (G19)', () => {
+    const world = armed(5);
+    clearCrate(world);
+    const pipe = at(world, 8, 5); // the bow is two tiles tall: the pipe above the crate is in its way too
+    world.room.objects = world.room.objects.filter((o) => o !== pipe);
+    world.step(F);
+    let farthest = 0;
+    for (let t = 0; t < 20; t++) {
+      world.step();
+      for (const s of shots(world)) farthest = Math.max(farthest, s.x);
+    }
+    expect(farthest).toBeGreaterThan(200); // the wall is at column 11 (x 264)
+  });
+
   it('a wall stops the shot with an explosion', () => {
     const world = armed(3);
     clearCrate(world);
