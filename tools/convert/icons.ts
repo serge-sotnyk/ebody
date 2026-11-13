@@ -1,5 +1,6 @@
 // App icons (home screen, install, browser tab): the hero standing, facing
-// right, scaled up with square pixels on the title screens' blue.
+// right, scaled up with square pixels on the title screens' blue. The
+// Android TV home screen shows a banner instead: the title picture.
 
 import { TILE } from '../../src/data/types.ts';
 import { HERO_ANIMS } from '../../src/sim/hero.ts';
@@ -50,4 +51,16 @@ export function heroIcon(heroAtlas: RgbaImage, size: number, scale: number): Rgb
     }
   });
   return { width: size, height: size, data };
+}
+
+/** Android TV launcher banner size (xhdpi). */
+export const BANNER = { width: 320, height: 180 } as const;
+
+/** The TV banner: the middle of the title picture (320x200, the "Electro Man" logo), cut to 320x180. */
+export function tvBanner(title: RgbaImage): RgbaImage {
+  const { width, height } = BANNER;
+  if (title.width !== width || title.height < height) throw new Error(`title picture is ${title.width}x${title.height}`);
+  const top = Math.floor((title.height - height) / 2);
+  const data = title.data.slice(top * width * 4, (top + height) * width * 4);
+  return { width, height, data };
 }

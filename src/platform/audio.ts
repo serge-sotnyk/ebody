@@ -43,6 +43,8 @@ export class SoundSystem {
   /** Wall-clock start of the current song and its pieces' durations, for songPosition(). */
   private songClock: { start: number; durations: number[] } | null = null;
   private songName: string | null = null;
+  /** The audio was stopped because the page was hidden, and comes back when it shows. */
+  private hiddenWhileRunning = false;
 
   /** `volume` 0..1, as the menu's slider shows it. */
   constructor(
@@ -83,6 +85,26 @@ export class SoundSystem {
     void ctx.resume().then(() => {
       if (this.songName && ctx.state === 'running') this.playSong(this.songName);
     });
+  }
+
+  /**
+   * Hidden pages (a background tab, or the Android app behind another one)
+   * are silent; the game stops there too. Back in view, a song starts over,
+   * as after unlock().
+   */
+  setHidden(hidden: boolean): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    if (hidden) {
+      if (ctx.state !== 'running') return;
+      this.hiddenWhileRunning = true;
+      void ctx.suspend();
+    } else if (this.hiddenWhileRunning) {
+      this.hiddenWhileRunning = false;
+      void ctx.resume().then(() => {
+        if (this.songName && ctx.state === 'running') this.playSong(this.songName);
+      });
+    }
   }
 
   setMuted(muted: boolean): void {
