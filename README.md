@@ -16,8 +16,8 @@ today:
   checkpoints, dies and comes back, and leaves through the exit; creatures
   patrol and shoot, cannons fire, rockets launch; the status bars show
   weapon heat, weapon level and disks; on touch screens, on-screen buttons
-  (multi-touch, a finger can slide between them) beside or below the picture,
-  and a prompt to turn the device sideways;
+  (multi-touch, a finger can slide between them, fire on both sides) beside
+  or below the picture, and a prompt to turn the device sideways;
 - a reproducible converter from the original DOS data files to web formats,
   checked against PyElectroMan's own converted data;
 - objects, enemies and the hero checked tick by tick against PyElectroMan
