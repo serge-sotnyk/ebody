@@ -6,6 +6,7 @@ import { loadLevel, loadSpriteSet, type LoadedSpriteSet } from '../data/loader.t
 import { MAP_COLS, MAP_ROWS, SCREEN_COLS, SCREEN_ROWS, TILE } from '../data/types.ts';
 import { fullscreenAvailable, toggleFullscreen } from '../platform/fullscreen.ts';
 import { Keyboard } from '../platform/keyboard.ts';
+import { attachTouchPad } from '../platform/touch.ts';
 import { startLoop } from '../platform/loop.ts';
 import { roomLayers } from '../render/compose.ts';
 import { createGameDisplay, FRAME_H, FRAME_W, PLAYFIELD_X, PLAYFIELD_Y } from '../render/display.ts';
@@ -22,6 +23,9 @@ const toastEl = $<HTMLElement>('toast');
 const fullscreenButton = $<HTMLButtonElement>('fullscreen');
 const display = createGameDisplay($<HTMLCanvasElement>('screen'), $<HTMLDivElement>('fit'));
 const keyboard = new Keyboard();
+const pad = $<HTMLElement>('pad');
+const touch = attachTouchPad(pad);
+const helpButton = $<HTMLButtonElement>('helpButton');
 const extraSets = Promise.all([loadSpriteSet('hero'), loadSpriteSet('weapons'), loadSpriteSet('info'), loadSpriteSet('enem')]);
 
 const settings = {
@@ -45,7 +49,7 @@ const loop = startLoop(TICK_HZ, tick, render);
 
 function tick(): void {
   if (!world) return;
-  world.step(keyboard.sample());
+  world.step(keyboard.sample() | touch.sample());
   if (world.completed) {
     // The level-complete screen comes in step 9.
     const i = (GAME_LEVELS as readonly string[]).indexOf(levelName);
@@ -180,6 +184,7 @@ window.addEventListener('keydown', (e) => {
       const aspect: PixelAspect = display.aspect === 1 ? 1.2 : 1;
       settings.aspect = aspect;
       display.setAspect(aspect);
+      layoutPad();
       toast(aspect === 1 ? 'square pixels' : '4:3 monitor pixels');
     },
     p: () => {
@@ -197,6 +202,10 @@ window.addEventListener('keydown', (e) => {
     '+': () => setHz(loop.hz + 1),
     h: () => toggleHelp(),
     '?': () => toggleHelp(),
+    t: () => {
+      showPad(pad.hidden !== false);
+      toast(pad.hidden ? 'touch buttons off' : 'touch buttons on');
+    },
     Escape: () => toggleHelp(false),
   };
   const action = actions[e.key.length === 1 ? e.key.toLowerCase() : e.key];
@@ -211,28 +220,82 @@ function setHz(hz: number): void {
   showStatus();
 }
 
-// Tapping the picture toggles the panel (touch controls come in step 5);
-// a double click or double tap toggles fullscreen.
-$('stage').addEventListener('click', () => toggleHelp());
-$('stage').addEventListener('dblclick', () => void toggleFullscreen());
+// Touch screens: the on-screen buttons show from the start, or from the first
+// touch on devices that also have a mouse; the help panel starts closed there.
+const coarse = matchMedia('(any-pointer: coarse)');
+const useTouch = (): void => {
+  if (!coarse.matches) return;
+  showPad(true);
+  toggleHelp(false);
+};
+coarse.addEventListener('change', useTouch);
+useTouch();
+window.addEventListener('pointerdown', (e) => {
+  if (e.pointerType === 'touch' && pad.hidden) showPad(true);
+});
 
-// The fullscreen button shows while the pointer moves and fades after a while.
-if (fullscreenAvailable()) {
-  fullscreenButton.hidden = false;
-  let idleTimer = 0;
-  const wake = (): void => {
-    fullscreenButton.classList.remove('idle');
-    clearTimeout(idleTimer);
-    idleTimer = window.setTimeout(() => fullscreenButton.classList.add('idle'), 2500);
-  };
-  window.addEventListener('pointermove', wake);
-  window.addEventListener('pointerdown', wake);
-  fullscreenButton.addEventListener('click', (e) => {
-    e.stopPropagation();
-    void toggleFullscreen();
-  });
-  wake();
+function showPad(show: boolean): void {
+  pad.hidden = !show;
+  layoutPad();
 }
+
+/**
+ * Keep the touch buttons off the picture: reserve room for them at the sides
+ * or along the bottom, whichever leaves the larger picture (sides on phones,
+ * bottom on 4:3 tablets).
+ */
+function layoutPad(): void {
+  const stage = $<HTMLElement>('stage');
+  stage.style.padding = '';
+  if (pad.hidden) return;
+  const move = pad.querySelector<HTMLElement>('.cluster.move')!.getBoundingClientRect();
+  const act = pad.querySelector<HTMLElement>('.cluster.act')!.getBoundingClientRect();
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const side = Math.ceil(Math.max(move.right, w - act.left)) + 4;
+  const bottom = Math.ceil(h - Math.min(move.top, act.top)) + 4;
+  const aspect = display.aspect;
+  const scaleBeside = Math.min((w - 2 * side) / FRAME_W, h / (FRAME_H * aspect));
+  const scaleAbove = Math.min(w / FRAME_W, (h - bottom) / (FRAME_H * aspect));
+  if (scaleBeside >= scaleAbove) {
+    stage.style.paddingLeft = `max(env(safe-area-inset-left), ${side}px)`;
+    stage.style.paddingRight = `max(env(safe-area-inset-right), ${side}px)`;
+  } else {
+    stage.style.paddingBottom = `max(env(safe-area-inset-bottom), ${bottom}px)`;
+  }
+}
+window.addEventListener('resize', layoutPad);
+
+// Held upright, a phone shows "turn your device" (shell.css) and the game waits.
+const upright = matchMedia('(orientation: portrait) and (any-pointer: coarse)');
+let pausedUpright = false;
+const followOrientation = (): void => {
+  if (upright.matches && !loop.paused) {
+    loop.pause(true);
+    pausedUpright = true;
+  } else if (!upright.matches && pausedUpright) {
+    loop.pause(false);
+    pausedUpright = false;
+  }
+};
+upright.addEventListener('change', followOrientation);
+followOrientation();
+
+// The corner buttons show while the pointer moves or a finger touches, and fade after a while.
+fullscreenButton.hidden = !fullscreenAvailable();
+let idleTimer = 0;
+const wake = (): void => {
+  for (const b of [helpButton, fullscreenButton]) b.classList.remove('idle');
+  clearTimeout(idleTimer);
+  idleTimer = window.setTimeout(() => {
+    for (const b of [helpButton, fullscreenButton]) b.classList.add('idle');
+  }, 3000);
+};
+window.addEventListener('pointermove', wake);
+window.addEventListener('pointerdown', wake);
+wake();
+helpButton.addEventListener('click', () => toggleHelp());
+fullscreenButton.addEventListener('click', () => void toggleFullscreen());
 
 function readSetting(key: string): string | null {
   try {

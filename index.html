@@ -12,11 +12,37 @@
       <div id="fit"><canvas id="screen" aria-label="Game screen"></canvas></div>
     </div>
 
-    <button id="fullscreen" class="corner" type="button" title="Fullscreen (F)" aria-label="Fullscreen" hidden>
-      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-        <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2" />
-      </svg>
-    </button>
+    <!-- On-screen buttons for touch screens: walk and Down under the left thumb, jump and fire under the right. -->
+    <div id="pad" class="pad" hidden>
+      <div class="cluster move">
+        <div class="btn b-down" data-bit="8" aria-label="Down: use a teleport or the exit">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-7 9z" /></svg>
+        </div>
+        <div class="btn b-left" data-bit="1" aria-label="Walk left">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5v14l-9-7z" /></svg>
+        </div>
+        <div class="btn b-right" data-bit="2" aria-label="Walk right">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l9-7z" /></svg>
+        </div>
+      </div>
+      <div class="cluster act">
+        <div class="btn b-jump" data-bit="4" aria-label="Jump">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 16h14l-7-9z" /></svg>
+        </div>
+        <div class="btn b-fire" data-bit="16" aria-label="Fire">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5" /></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="corner-buttons">
+      <button id="helpButton" class="corner" type="button" title="Help (H)" aria-label="Help">?</button>
+      <button id="fullscreen" class="corner" type="button" title="Fullscreen (F)" aria-label="Fullscreen" hidden>
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+          <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="currentColor" stroke-width="2" />
+        </svg>
+      </button>
+    </div>
 
     <aside id="help" class="panel">
       <h1>Electro Man</h1>
@@ -26,6 +52,7 @@
         <tr><td>↑</td><td>jump</td></tr>
         <tr><td>↓</td><td>use a teleport or the exit (standing on it)</td></tr>
         <tr><td>Space</td><td>fire (needs a battery)</td></tr>
+        <tr><td>T</td><td>show / hide the touch buttons</td></tr>
         <tr><td>Shift+arrows</td><td>look at the next screen (debug)</td></tr>
         <tr><td>R</td><td>restart the level</td></tr>
         <tr><td>[ &nbsp;]</td><td>previous / next level</td></tr>
@@ -33,7 +60,7 @@
         <tr><td>A</td><td>pixel shape: square / 4:3 monitor</td></tr>
         <tr><td>P &nbsp;.</td><td>pause / one tick</td></tr>
         <tr><td>− &nbsp;=</td><td>ticks per second</td></tr>
-        <tr><td>H</td><td>show / hide this panel</td></tr>
+        <tr><td>H &nbsp;?</td><td>show / hide this panel</td></tr>
       </table>
       <p id="status" class="status"></p>
       <p>
@@ -46,6 +73,17 @@
         (<a href="data/ATTRIBUTION.md">attribution</a>).
       </p>
     </aside>
+
+    <div id="rotate" class="rotate" aria-live="polite">
+      <div>
+        <svg viewBox="0 0 64 64" width="72" height="72" aria-hidden="true">
+          <rect x="10" y="20" width="44" height="26" rx="4" fill="none" stroke="currentColor" stroke-width="3" />
+          <path d="M22 8a14 14 0 0 1 18 2" fill="none" stroke="currentColor" stroke-width="3" />
+          <path d="M40 4v7h-7" fill="none" stroke="currentColor" stroke-width="3" />
+        </svg>
+        <p>Turn your device sideways</p>
+      </div>
+    </div>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 

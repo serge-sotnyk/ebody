@@ -45,10 +45,16 @@ a {
   display: block;
 }
 
-.corner {
+.corner-buttons {
   position: fixed;
   top: calc(env(safe-area-inset-top) + 10px);
   right: calc(env(safe-area-inset-right) + 10px);
+  display: flex;
+  gap: 8px;
+  z-index: 5;
+}
+
+.corner {
   width: 40px;
   height: 40px;
   display: grid;
@@ -65,6 +71,128 @@ a {
 .corner.idle {
   opacity: 0;
   pointer-events: none;
+}
+
+.corner[hidden] {
+  display: none;
+}
+
+#helpButton {
+  font: 600 18px system-ui, sans-serif;
+}
+
+/* Touch buttons, anchored to the bottom corners. The game page keeps room
+   for them beside the picture (phones) or below it (tablets), see main.ts. */
+.pad {
+  --btn: clamp(44px, 15vmin, 80px);
+  --gap: clamp(6px, 2.5vmin, 14px);
+  --arm: calc(var(--btn) * 0.8);
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.pad[hidden] {
+  display: none;
+}
+
+.cluster {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom) + var(--gap));
+  display: grid;
+}
+
+/* Down above a left/right rocker. */
+.cluster.move {
+  left: calc(env(safe-area-inset-left) + var(--gap));
+  grid-template-columns: var(--arm) var(--arm);
+  grid-template-rows: var(--arm) var(--btn);
+  row-gap: var(--gap);
+}
+
+/* Jump above fire. */
+.cluster.act {
+  right: calc(env(safe-area-inset-right) + var(--gap));
+  grid-template-columns: var(--btn);
+  grid-template-rows: var(--btn) var(--btn);
+  row-gap: var(--gap);
+}
+
+.btn {
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: rgb(255 255 255 / 0.1);
+  border: 1px solid rgb(255 255 255 / 0.3);
+  color: rgb(255 255 255 / 0.75);
+}
+
+.btn.pressed {
+  background: rgb(255 255 255 / 0.35);
+  color: #fff;
+}
+
+.btn svg {
+  width: 55%;
+  height: 55%;
+  fill: currentColor;
+}
+
+.b-down {
+  grid-column: 1 / 3;
+  grid-row: 1;
+  justify-self: center;
+  width: var(--btn);
+}
+
+.b-left {
+  grid-column: 1;
+  grid-row: 2;
+  border-radius: 14px 0 0 14px;
+}
+
+.b-right {
+  grid-column: 2;
+  grid-row: 2;
+  border-radius: 0 14px 14px 0;
+  border-left: none;
+}
+
+.b-jump,
+.b-fire {
+  grid-column: 1;
+  border-radius: 50%;
+}
+
+.b-jump {
+  grid-row: 1;
+}
+
+.b-fire {
+  grid-row: 2;
+}
+
+/* Phones and tablets held upright: the game is played sideways. */
+.rotate {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  place-items: center;
+  text-align: center;
+  background: #000;
+  color: var(--fg);
+}
+
+@media (orientation: portrait) and (any-pointer: coarse) {
+  .rotate {
+    display: grid;
+  }
 }
 
 .panel {

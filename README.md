@@ -13,7 +13,9 @@ today:
   jumps, shoots, uses teleports, collects batteries and disks, reaches
   checkpoints, dies and comes back, and leaves through the exit; creatures
   patrol and shoot, cannons fire, rockets launch; the status bars show
-  weapon heat, weapon level and disks;
+  weapon heat, weapon level and disks; on touch screens, on-screen buttons
+  (multi-touch, a finger can slide between them) beside or below the picture,
+  and a prompt to turn the device sideways;
 - a reproducible converter from the original DOS data files to web formats,
   checked against PyElectroMan's own converted data;
 - objects, enemies and the hero checked tick by tick against PyElectroMan
@@ -71,7 +73,7 @@ The site is built for the base path `/ebody/` (GitHub Pages project site).
 | `src/data/` | asset formats and loading |
 | `src/sim/` | game logic at a fixed 20 ticks a second, independent of the browser |
 | `src/render/` | drawing into the 320×200 frame and scaling it to the window |
-| `src/platform/` | browser services: game loop, keyboard, fullscreen |
+| `src/platform/` | browser services: game loop, keyboard, touch buttons, fullscreen |
 | `src/shell/` | the game page |
 | `src/viewer/` | level and sprite viewer pages |
 | `tools/convert/` | asset converter and its verification |
