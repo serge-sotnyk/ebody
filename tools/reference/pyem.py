@@ -93,6 +93,17 @@ def patch(m, teleport_time=12):
 
     ga.ScreenManager.reset_level = reset_level_keeping_checkpoint
 
+    # Shots fired in a tick wait in new_objects until it ends; a screen change
+    # meanwhile (leaving the screen, respawning) would add them to the new
+    # screen at their old places. They go with the screen they were fired on.
+    change_screen = ga.ScreenManager.change_screen
+
+    def change_screen_dropping_shots(self, screen_number):
+        self.new_objects = []
+        change_screen(self, screen_number)
+
+    ga.ScreenManager.change_screen = change_screen_dropping_shots
+
 
 def _teleport_order(m):
     """G16: fade out, wait out of sight, move, fade in (PyElectroMan fades in

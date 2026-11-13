@@ -48,4 +48,6 @@ mention sound or music separately; the 2006 freeware release covered the
 whole game archive, including sound. According to Polish Wikipedia, some
 of the game's sound effects were sampled from third-party music
 recordings. We have asked the author to clarify the licensing of the
-sound files; this note will be updated with the answer.
+sound files and screens
+([tosiabunio/pyelectroman#5](https://github.com/tosiabunio/pyelectroman/issues/5));
+this note will be updated with the answer.

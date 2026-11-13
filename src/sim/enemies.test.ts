@@ -134,6 +134,22 @@ describe('cannons', () => {
     expect(farthest).toBeLessThan(240);
     expect(farthest).toBeGreaterThan(200);
   });
+
+  it('a shot fired as the hero walks off the screen stays behind', () => {
+    const floor: Cells = {};
+    for (let c = 0; c < 13; c++) floor[cell(c, 7)] = FLOOR;
+    const world = new World(level({ ...floor, [cell(10, 6)]: START, [cell(2, 3)]: CANNON }, floor), sprites);
+    const cannon = world.room.objects.find((o) => o.kind === 'cannon')!;
+    let shotsBehind = 0;
+    for (let t = 0; t < 60 && world.room.screen === 0; t++) {
+      if (cannon.phase === 'ready') cannon.timer = 0; // it fires on every tick, the last one on screen 0 too
+      shotsBehind = world.room.objects.filter((o) => o.kind === 'enemyShot').length;
+      world.step(INPUT.right);
+    }
+    expect(shotsBehind).toBeGreaterThan(0);
+    expect(world.room.screen).toBe(1);
+    expect(world.room.objects.filter((o) => o.kind === 'enemyShot')).toEqual([]);
+  });
 });
 
 describe('rockets', () => {
