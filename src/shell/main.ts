@@ -7,7 +7,7 @@ import { GAME_LEVELS } from '../data/levels.ts';
 import { loadBitmap, loadLevel, loadSpriteSet, type LoadedSpriteSet } from '../data/loader.ts';
 import { END_SONG, LEVEL_SONG, TITLE_SONG, titlePicture } from '../data/songs.ts';
 import { MAP_COLS, MAP_ROWS, SCREEN_COLS, SCREEN_ROWS, TILE } from '../data/types.ts';
-import { applyUpdate, canInstall, install, startApp, updateReady } from '../platform/app.ts';
+import { applyUpdate, canInstall, install, packaged, startApp, updateReady } from '../platform/app.ts';
 import { SoundSystem } from '../platform/audio.ts';
 import { fullscreenAvailable, startedFullscreen, toggleFullscreen } from '../platform/fullscreen.ts';
 import { Keyboard } from '../platform/keyboard.ts';
@@ -475,9 +475,11 @@ window.addEventListener('keydown', (e) => {
   if (!menu.hidden && e.key.toLowerCase() !== 'm') return; // the menu has the keys
   if (mode !== 'title') sound.unlock();
   if (e.key === 'Escape') {
-    e.preventDefault();
+    // With nothing to close, Esc is left alone: Back on a TV remote then leaves the Android app (android/).
     if (!help.hidden) toggleHelp(false);
     else if (mode === 'play') showMenu('pause');
+    else return;
+    e.preventDefault();
     return;
   }
   if (mode !== 'play' && (e.key === 'Enter' || e.key === ' ')) {
@@ -613,7 +615,9 @@ upright.addEventListener('change', followOrientation);
 followOrientation();
 
 // The corner buttons show while the pointer moves or a finger touches, and fade after a while.
-fullscreenButton.hidden = !fullscreenAvailable() || startedFullscreen();
+fullscreenButton.hidden = packaged || !fullscreenAvailable() || startedFullscreen();
+$('installHelp').hidden = packaged;
+document.addEventListener('visibilitychange', () => sound.setHidden(document.hidden));
 let idleTimer = 0;
 const wake = (): void => {
   for (const b of [menuButton, fullscreenButton]) b.classList.remove('idle');

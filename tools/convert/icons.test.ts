@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ATLAS_COLUMNS, TILE } from '../../src/data/types.ts';
 import { HERO_ANIMS } from '../../src/sim/hero.ts';
 import type { RgbaImage } from './bmp.ts';
-import { heroIcon, ICON_BACKGROUND, ICONS } from './icons.ts';
+import { BANNER, heroIcon, ICON_BACKGROUND, ICONS, tvBanner } from './icons.ts';
 
 /** A hero atlas whose standing sprites are each one red pixel, at their top-left corner. */
 function atlas(): RgbaImage {
@@ -35,5 +35,14 @@ describe('app icons', () => {
     const { size, scale } = ICONS.find((i) => i.file.includes('maskable'))!;
     const halfDiagonal = Math.hypot((TILE * scale) / 2, TILE * scale);
     expect(halfDiagonal).toBeLessThanOrEqual(0.4 * size);
+  });
+
+  it('cuts the TV banner from the middle of the title picture', () => {
+    const data = new Uint8Array(320 * 200 * 4);
+    for (let y = 0; y < 200; y++) data.fill(y, y * 320 * 4, (y + 1) * 320 * 4); // each row's bytes hold its number
+    const banner = tvBanner({ width: 320, height: 200, data });
+    expect(banner).toMatchObject(BANNER);
+    expect(pixel(banner, 0, 0)).toEqual([10, 10, 10, 10]);
+    expect(pixel(banner, 319, 179)).toEqual([189, 189, 189, 189]);
   });
 });

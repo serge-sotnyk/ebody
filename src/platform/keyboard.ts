@@ -11,7 +11,23 @@ const KEYS: Record<string, number> = {
   ArrowUp: INPUT.up,
   ArrowDown: INPUT.down,
   Space: INPUT.fire,
+  Enter: INPUT.fire,
+  NumpadEnter: INPUT.fire,
 };
+
+/**
+ * Keys by what they mean (KeyboardEvent.key), for keys with no physical
+ * code of their own: a TV remote's D-pad sends arrows, and its OK button Enter.
+ */
+const MEANINGS: Record<string, number> = {
+  ArrowLeft: INPUT.left,
+  ArrowRight: INPUT.right,
+  ArrowUp: INPUT.up,
+  ArrowDown: INPUT.down,
+  Enter: INPUT.fire,
+};
+
+const controllerBit = (e: KeyboardEvent): number | undefined => KEYS[e.code] ?? MEANINGS[e.key];
 
 export class Keyboard {
   private held = 0;
@@ -19,14 +35,14 @@ export class Keyboard {
 
   constructor(target: Window = window) {
     target.addEventListener('keydown', (e) => {
-      const bit = KEYS[e.code];
+      const bit = controllerBit(e);
       if (bit === undefined || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
       e.preventDefault();
       this.held |= bit;
       this.pressed |= bit;
     });
     target.addEventListener('keyup', (e) => {
-      const bit = KEYS[e.code];
+      const bit = controllerBit(e);
       if (bit !== undefined) this.held &= ~bit;
     });
     // Keys released while the window had no focus never send keyup.

@@ -15,8 +15,16 @@ interface InstallPromptEvent extends Event {
 let installOffer: InstallPromptEvent | null = null;
 let waiting: ServiceWorker | null = null;
 
+/**
+ * Inside the Android app (android/), which serves the game's files from the
+ * APK at this address. It has them all already, and updates come as a new
+ * APK: no service worker, no install offer, no fullscreen button.
+ */
+export const packaged = location.hostname === 'appassets.androidplatform.net';
+
 /** Start the service worker (built site only); `onUpdate` hears of a downloaded new version. */
 export function startApp(onUpdate: () => void): void {
+  if (packaged) return;
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault(); // keep the offer for the menu instead of the browser's own banner
     installOffer = e as InstallPromptEvent;

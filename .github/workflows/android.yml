@@ -1,0 +1,48 @@
+name: Android
+
+# Builds the Android app (android/): the game in a full-screen WebView, for
+# Android TV, phones and tablets, installed by hand (adb, or the APK file
+# from a USB stick). The APK is attached to the run as electro-man.apk.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch or PR cancels the run still going.
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      # The runner has the Android SDK; Gradle and the JDK come from here (android/ has no Gradle wrapper).
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.14.3'
+
+      - run: npm ci
+      # The site with the game's data, plus the launcher icon and TV banner (npm run assets runs first).
+      - run: npm run build
+      - run: gradle --project-dir android assembleRelease
+      - run: cp android/app/build/outputs/apk/release/app-release.apk electro-man.apk
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: electro-man.apk
+          archive: false
+          if-no-files-found: error

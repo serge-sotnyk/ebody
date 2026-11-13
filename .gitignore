@@ -151,3 +151,10 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Android app: Gradle's output, and the icon and banner made by npm run assets
+android/.gradle/
+android/build/
+android/app/build/
+android/app/src/generated/
+android/local.properties

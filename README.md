@@ -15,7 +15,8 @@ exists today:
   in order with a "level completed" screen between them and the final
   screen after the last; sound effects and a volume control; the game saved
   in the browser at every checkpoint (Continue); installable as an app (PWA)
-  that starts full screen and plays offline; every level running at 20 ticks a second with
+  that starts full screen and plays offline, and as an Android app for TVs,
+  phones and tablets; every level running at 20 ticks a second with
   its animated objects, scaled to the whole window, with fullscreen; the hero walks,
   jumps, shoots, uses teleports, collects batteries and disks, reaches
   checkpoints, dies and comes back, and leaves through the exit; creatures
@@ -77,6 +78,37 @@ python3 -m venv ../pyelectroman-venv
 
 The site is built for the base path `/ebody/`. Every push to `main` publishes it to GitHub Pages (`.github/workflows/pages.yml`).
 
+## Android app (TV, phone, tablet)
+
+`android/` wraps the built site in a full-screen WebView, for Android TV
+(it shows on the TV home screen with the title picture as its banner),
+phones and tablets. The game's files are inside the APK, so it needs no
+network. GitHub Actions builds it (`.github/workflows/android.yml`) for every
+pull request and every push to `main`; the run's page has `electro-man.apk`
+to download. To install it, either copy it to a USB stick and open it with
+the TV's file manager (allowing installs from unknown sources), or with
+[adb](https://developer.android.com/tools/adb):
+
+```bash
+adb connect <TV's IP address>   # once "USB debugging" or "network debugging" is on in the TV's developer options
+adb install -r electro-man.apk  # -r keeps the saved game when updating
+```
+
+Keys: a keyboard works as on a computer; on a TV remote, the arrows walk
+and jump, OK fires (and picks in the menu), Back opens or closes the menu
+and leaves the game from the title screen.
+
+The APK is signed with a key committed in `android/app/sideload.p12`
+(password `android`). It is public on purpose: it only makes a newer APK
+install over an older one and keep the saved game. Anyone can sign an APK
+with it, so it is not for a store. A store, or a private key kept in the
+repository's secrets, would need a new key: Android 9 and later can move
+an installed app to it (APK signature scheme v3 key rotation), otherwise the
+app is installed afresh once and the saved game is lost.
+
+Building locally needs JDK 17, Gradle 8.14 and the Android SDK:
+`npm run build && gradle --project-dir android assembleRelease`.
+
 ## Project layout
 
 | Path | Contents |
@@ -90,6 +122,7 @@ The site is built for the base path `/ebody/`. Every push to `main` publishes it
 | `tools/convert/` | asset converter and its verification |
 | `tools/reference/` | PyElectroMan run headless as a reference for game logic |
 | `tools/pwa/` | Vite plugin for the installable app: manifest, icon links, service worker |
+| `android/` | the Android app: a WebView with the built site inside |
 | `assets/original/` | original game data (CC BY-SA) |
 | `assets/generated/` | converter output, not committed |
 | `docs/fidelity.md` | known and suspected differences from the original game |
