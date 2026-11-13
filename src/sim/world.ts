@@ -112,6 +112,10 @@ export class World {
    */
   enter(screen: number): void {
     this.room = this.makeRoom(screen);
+    // Shots fired earlier in this tick belong to the screen being left. They
+    // only wait for the tick's end to join it, so they go with it; PyElectroMan
+    // adds them to the new screen instead, where they appear out of nowhere.
+    this.spawned = [];
   }
 
   private makeRoom(screen: number): Room {
