@@ -7,11 +7,15 @@ platformer by xLand. The goal of the first stage is a faithful recreation of
 the original game that runs in any modern browser, on desktop and on phones,
 without installation. Extending the game comes later.
 
-**Status:** early work in progress. The game is not playable yet. What exists
-today:
+**Status:** work in progress. The game can be played from start to end;
+checking it against the DOS original is ongoing (`docs/fidelity.md`). What
+exists today:
 
-- the game page: every level running at 20 ticks a second with its animated
-  objects, scaled to the whole window, with fullscreen; the hero walks,
+- the game page: the title screen with its music, a menu, the eight levels
+  in order with a "level completed" screen between them and the final
+  screen after the last; sound effects; the game saved in the browser at
+  every checkpoint (Continue); every level running at 20 ticks a second with
+  its animated objects, scaled to the whole window, with fullscreen; the hero walks,
   jumps, shoots, uses teleports, collects batteries and disks, reaches
   checkpoints, dies and comes back, and leaves through the exit; creatures
   patrol and shoot, cannons fire, rockets launch; the status bars show
@@ -75,7 +79,7 @@ The site is built for the base path `/ebody/`. Every push to `main` publishes it
 | `src/data/` | asset formats and loading |
 | `src/sim/` | game logic at a fixed 20 ticks a second, independent of the browser |
 | `src/render/` | drawing into the 320×200 frame and scaling it to the window |
-| `src/platform/` | browser services: game loop, keyboard, touch buttons, fullscreen |
+| `src/platform/` | browser services: game loop, keyboard, touch buttons, fullscreen, sound, saved game |
 | `src/shell/` | the game page |
 | `src/viewer/` | level and sprite viewer pages |
 | `tools/convert/` | asset converter and its verification |

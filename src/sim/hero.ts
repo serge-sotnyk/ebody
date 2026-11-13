@@ -11,6 +11,7 @@
 import { MAP_COLS, SCREEN_COLS, SCREEN_ROWS, TILE } from '../data/types.ts';
 import { checkMove, groundDistance, rectsOverlap, type Rect, type SolidBox } from './collision.ts';
 import { TOUCH, type SimObject } from './objects.ts';
+import type { SoundName } from './sounds.ts';
 import { createShot, HEAT, MAGAZINE, MAX_HEAT } from './weapons.ts';
 import type { BorlandRandom } from './random.ts';
 
@@ -133,6 +134,7 @@ export interface TouchEffects {
   levelDone(): void;
   /** A new shot; it joins the room at the end of the tick and first moves on the next. */
   shoot(shot: SimObject): void;
+  sound(name: SoundName): void;
 }
 
 /** What the hero sees of the world during one tick. */
@@ -235,6 +237,7 @@ function fire(h: Hero, c: HeroContext): void {
   h.cooldown = 4;
   h.ammo -= 1;
   c.effects.shoot(createShot(h.power, h.orientation, h.x, h.y));
+  c.effects.sound(`shoot${h.power}` as SoundName);
   if (!h.ammo) {
     h.power -= 1;
     h.ammo = MAGAZINE[h.power]!;
@@ -282,9 +285,11 @@ function handleTouch(h: Hero, c: HeroContext): void {
         h.power = Math.min(h.power + 1, 5);
         h.ammo = MAGAZINE[h.power]!;
         e.remove(o);
+        e.sound('battery');
         break;
       case TOUCH.teleport:
         if (down && grounded) {
+          e.sound('teleport');
           h.teleportTarget = c.teleportTarget(o.x, o.y);
           newState(h, 'teleportOut');
         }
@@ -295,10 +300,12 @@ function handleTouch(h: Hero, c: HeroContext): void {
           h.power = 0;
           h.temp = 0;
           h.ammo = MAGAZINE[0]!;
+          e.sound('checkp');
         }
         break;
       case TOUCH.killer:
         if (h.state !== 'death') {
+          e.sound('blast');
           const box = t.box;
           e.explode(box.x + Math.floor(box.w / 2) - TILE / 2, box.y + Math.floor(box.h / 2) - TILE / 2);
           e.remove(o);
@@ -308,12 +315,14 @@ function handleTouch(h: Hero, c: HeroContext): void {
       case TOUCH.floppy:
         e.takeDisk(o);
         e.remove(o);
+        e.sound('disk');
         break;
       case TOUCH.exit:
         if (e.disks() >= 3 && down && grounded) {
           e.exitLevel();
           h.teleportTarget = null;
           newState(h, 'teleportOut');
+          e.sound('teleport');
         }
         break;
       default:
@@ -350,7 +359,7 @@ function run(h: Hero, s: HeroState, init: boolean, c: HeroContext): void {
     case 'fall':
       return fall(h, init, c);
     case 'land':
-      return land(h, init);
+      return land(h, init, c);
     case 'teleportOut':
       return teleportOut(h, init, c);
     case 'teleportWait':
@@ -394,6 +403,7 @@ function move(h: Hero, init: boolean, c: HeroContext): void {
   const moved = moveBy(h, c);
   if (moved.x !== 0) {
     h.frame = (h.frame + 1) % HERO_ANIMS[h.anim].length;
+    if (h.frame === 2 || h.frame === 7) c.effects.sound('footstep'); // EB_HERO.C:1010,1018
   } else {
     // Against a wall: stand still facing it.
     h.anim = side(h, 'LSTAND', 'RSTAND');
@@ -428,6 +438,7 @@ function beforeJump(h: Hero, init: boolean): void {
 
 function jump(h: Hero, init: boolean, c: HeroContext): void {
   if (init) {
+    c.effects.sound('jump');
     // The direction held when the jump starts decides it; with none, the walking direction is kept.
     if (held(c, INPUT.left)) {
       h.moveX = -MOVE_STEP;
@@ -473,12 +484,15 @@ function fall(h: Hero, init: boolean, c: HeroContext): void {
 }
 
 /** Two ticks crouching after a fall. */
-function land(h: Hero, init: boolean): void {
+function land(h: Hero, init: boolean, c: HeroContext): void {
   if (init) h.counter = 2;
   h.anim = side(h, 'LLAND', 'RLAND');
   h.frame = 0;
   h.counter -= 1;
-  if (h.counter === 0) newState(h, 'stand');
+  if (h.counter === 0) {
+    c.effects.sound('jumpend');
+    newState(h, 'stand');
+  }
 }
 
 /*
@@ -555,6 +569,7 @@ function death(h: Hero, init: boolean, c: HeroContext): void {
     const dx = -12 + c.rng.random(24);
     const dy = c.rng.random(24);
     c.effects.explode(h.x + dx, h.y + dy);
+    c.effects.sound('blast');
   } else if (h.deathTimer >= 70) {
     c.respawn();
   }

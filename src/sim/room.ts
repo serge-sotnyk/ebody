@@ -6,6 +6,7 @@ import { SCREEN_COLS, SCREEN_ROWS, TILE, type LevelFile } from '../data/types.ts
 import { solidBoxes, type SolidBox } from './collision.ts';
 import { updateCannon, updateCreature, updateEnemyShot, updateRocket, type EnemyContext } from './enemies.ts';
 import { createExplosion, createObject, updateObject, type ObjectContext, type SimObject } from './objects.ts';
+import type { SoundName } from './sounds.ts';
 import { updateShot, type ShotContext } from './weapons.ts';
 import { initScreenRandoms, type BorlandRandom } from './random.ts';
 import { ACTION_TELEPORT, classifyTile, type LevelSprites } from './tiles.ts';
@@ -108,6 +109,7 @@ export interface RoomWorld {
   hero: { x: number; y: number } | null;
   /** A shot fired by an enemy; it joins the room at the end of the tick. */
   spawn(o: SimObject): void;
+  sound(name: SoundName): void;
   /** An object of this room left the level map for good (until the hero dies). */
   removeFromMap(o: SimObject): void;
   /** An object made during play joins the level map (remains of a destroyed object). */
@@ -119,6 +121,7 @@ const NO_WORLD: RoomWorld = {
   counter: 0,
   hero: null,
   spawn: () => {},
+  sound: () => {},
   removeFromMap: () => {},
   addToMap: () => {},
 };
@@ -141,6 +144,7 @@ export function stepRoom(room: Room, sprites: LevelSprites, rng: BorlandRandom, 
     explode: (x: number, y: number) => {
       room.objects.push(createExplosion(x, y));
     },
+    sound: world.sound,
   };
   const shots: ShotContext = {
     ...common,

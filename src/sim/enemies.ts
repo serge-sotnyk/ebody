@@ -11,6 +11,7 @@ import { collides, rectsOverlap, type Rect, type SolidBox } from './collision.ts
 import { CREATURES, FLYING } from './enemy-data.ts';
 import { blank, currentInfo, type SimObject } from './objects.ts';
 import type { BorlandRandom } from './random.ts';
+import type { SoundName } from './sounds.ts';
 import type { LevelSprites } from './tiles.ts';
 
 const MAX_X = SCREEN_COLS * TILE;
@@ -29,6 +30,7 @@ export interface EnemyContext {
   /** A new shot; it joins the room at the end of the tick. */
   spawn(o: SimObject): void;
   explode(x: number, y: number): void;
+  sound(name: SoundName): void;
 }
 
 const NO_BOX: Rect = { x: 0, y: 0, w: 0, h: 0 };
@@ -55,6 +57,8 @@ export function updateCreature(o: SimObject, c: EnemyContext): void {
   if (o.shoots) {
     if (o.timer! > 0) o.timer! -= 1;
     if (o.timer === 0 && o.frame === 0) {
+      // A warning first: walkers close by (slow) sound different (EB_ENEM.C:826-829, 993).
+      c.sound(o.creature !== FLYING && Math.abs(o.step!) < 5 ? 'warning' : 'warning2');
       o.delay = 16;
       o.timer = 32 + c.rng.random(64);
       o.phase = 'shoot';
@@ -126,6 +130,7 @@ function creatureShoots(o: SimObject, c: EnemyContext): void {
   const frames = o.step! < 0 ? anims.shotLeft : anims.shotRight;
   const speed = c.sprites.info(frames[0]!, 'enem')?.param ?? 2;
   const b = box(o, c.sprites);
+  c.sound(o.creature === FLYING ? 'laser' : 'shoot');
   if (o.creature === FLYING) {
     c.spawn(enemyShot(frames, 'enem', o.x, o.y + b.y + b.h + 1, 0, speed));
   } else if (o.step! < 0) {
@@ -209,6 +214,7 @@ function fireCannon(o: SimObject, c: EnemyContext): void {
   else if (o.dy! < 0) y = o.y + cb.y - (pb.y + pb.h) - 1;
   else y = o.y + cb.y + cb.h - pb.y + 1;
   c.spawn(enemyShot([shot], undefined, x, y, o.dx! * speed, o.dy! * speed));
+  c.sound('laser');
 }
 
 // --- rockets ---------------------------------------------------------------
@@ -233,6 +239,7 @@ export function updateRocket(o: SimObject, c: EnemyContext): void {
   o.frame = (o.frame + 1) % o.frames.length;
   if (collides(b, o.x, o.y, 0, o.vy!, c.solids(), false)) {
     c.explode(o.x, o.y);
+    c.sound('blast');
     c.destroy(o);
     return;
   }

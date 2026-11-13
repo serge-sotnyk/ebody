@@ -149,3 +149,21 @@ describe('checkpoint look', () => {
     expect(frameAt(7)).toBe(CHECKPOINT);
   });
 });
+
+describe('a saved game', () => {
+  it('resumes at its checkpoint with its disks collected, and survives a trip through JSON', () => {
+    const played = new World(level(), sprites);
+    walkRight(played, 36);
+    expect(played.checkpoints).toBe(1);
+    const saved = JSON.parse(JSON.stringify(played.progress())) as ReturnType<World['progress']>;
+
+    const world = new World(level(), sprites);
+    world.resume(saved);
+    expect(world.disks).toBe(1);
+    expect(world.checkpoint).toEqual({ screen: 0, x: 7 * 24, y: 6 * 24 });
+    expect(world.activeCheckpointHere()).toEqual(world.checkpoint);
+    expect(world.hero).toMatchObject({ state: 'stand', x: 7 * 24, y: 6 * 24 - 24, power: 0 });
+    expect(objectAt(world, 5)).toBeUndefined(); // the disk stays taken
+    expect(objectAt(world, 3)).toBe(BATTERY); // a battery is not part of the save
+  });
+});
