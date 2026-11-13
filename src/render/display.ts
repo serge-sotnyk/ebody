@@ -8,7 +8,8 @@ export { FRAME_H, FRAME_W };
  * Where the 13x8-tile (312x192) playfield sits inside the frame: the top-left
  * corner, leaving an 8-pixel black strip on the right and at the bottom. There
  * is no panel around it; the status bars are drawn over the playfield.
- * Checked against DOS screenshots, see docs/fidelity.md (R1).
+ * Checked against DOS screenshots, see docs/fidelity.md (R1). On the page the
+ * playfield is centred during play (shell.css #stage.play).
  */
 export const PLAYFIELD_X = 0;
 export const PLAYFIELD_Y = 0;

@@ -1,6 +1,10 @@
-// Where the touch buttons go and how big they are, so that they never cover
-// the picture: in strips beside it (phones in landscape) or in a strip below
-// it (tablets), whichever leaves the larger picture.
+// Where the touch buttons go and how big they are: in strips beside the
+// picture (phones in landscape) or in a strip below it (tablets), whichever
+// leaves the larger picture. Below, the picture comes down to the middle of
+// the bottom row of buttons, and a second row (fire on the left, jump on the
+// right) sits above it: the buttons in the corners reach a little over the
+// picture's edges, which costs less than black bands beside a smaller
+// picture; the buttons are see-through (shell.css).
 
 import { FRAME_H, FRAME_W, type PixelAspect } from './scale.ts';
 
@@ -13,7 +17,7 @@ export interface PadLayout {
   big: number;
   /** Beside: width of each side strip. */
   side: number;
-  /** Below: height of the bottom strip. */
+  /** Below: room kept under the picture (half the bottom row and the gap under it). */
   bottom: number;
   /**
    * The left/right rocker. Beside: at least 2.2 buttons wide, reaching a
@@ -44,7 +48,7 @@ export function padLayout(w: number, h: number, aspect: PixelAspect = 1): PadLay
   const fitsBeside = 3 * btn + 3 * gap + CORNER <= h;
   const scaleBeside = picture(w - 2 * side, h);
 
-  const bottom = rockerH + 2 * gap;
+  const bottom = Math.round(rockerH / 2) + gap;
   const scaleBelow = picture(w, h - bottom);
 
   if (fitsBeside && scaleBeside >= scaleBelow) {

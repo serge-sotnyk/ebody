@@ -32,12 +32,19 @@ describe('padLayout', () => {
     expect(3 * l.big + 4 * l.gap + 50).toBeLessThanOrEqual(412);
   });
 
-  it('4:3 tablet (1024x768): a strip below the picture', () => {
+  it('4:3 tablet (1024x768): buttons below, the picture down to the middle of their bottom row', () => {
     const l = padLayout(1024, 768);
     expect(l.mode).toBe('below');
-    expect(l.bottom).toBe(l.rockerH + 2 * l.gap);
-    // The picture is at least 600 tall (fills the width up to 1024 / 320 * 200 = 640).
-    expect(Math.min(1024 / 320, (768 - l.bottom) / 200) * 200).toBeGreaterThanOrEqual(600);
+    expect(l.bottom).toBe(Math.round(l.rockerH / 2) + l.gap);
+    // The picture fills the width: 1024 / 320 * 200 = 640 tall.
+    expect(Math.min(1024 / 320, (768 - l.bottom) / 200) * 200).toBe(640);
+  });
+
+  it('wide tablet (1280x768): narrow black bands beside a picture at least 1100 wide', () => {
+    const l = padLayout(1280, 768);
+    expect(l.mode).toBe('below');
+    const pictureW = Math.min(1280 / 320, (768 - l.bottom) / 200) * 320;
+    expect(pictureW).toBeGreaterThanOrEqual(1100);
   });
 
   it('the rocker never grows past 3.2 buttons, even on a very wide screen', () => {
