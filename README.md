@@ -1,5 +1,7 @@
 # ebody
 
+**Play:** https://serge-sotnyk.github.io/ebody/ (published from `main`)
+
 A browser port of **Electro Man** (Polish title *Electro Body*), the 1992 DOS
 platformer by xLand. The goal of the first stage is a faithful recreation of
 the original game that runs in any modern browser, on desktop and on phones,
@@ -64,7 +66,7 @@ python3 -m venv ../pyelectroman-venv
 ../pyelectroman-venv/bin/pip install -r tools/reference/requirements.txt
 ```
 
-The site is built for the base path `/ebody/` (GitHub Pages project site).
+The site is built for the base path `/ebody/`. Every push to `main` publishes it to GitHub Pages (`.github/workflows/pages.yml`).
 
 ## Project layout
 
