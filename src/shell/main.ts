@@ -37,6 +37,7 @@ const menuButton = $<HTMLButtonElement>('menuButton');
 const menu = $<HTMLElement>('menu');
 const extraSets = Promise.all([loadSpriteSet('hero'), loadSpriteSet('weapons'), loadSpriteSet('info'), loadSpriteSet('enem')]);
 const sound = new SoundSystem(readSetting('sound') === 'off', savedVolume() / 100);
+sound.setMusic(readSetting('music') !== 'off');
 const soundReady = sound.load([TITLE_SONG, LEVEL_SONG, END_SONG]);
 const pictures = Promise.all(['tit1', 'tit2', 'back', 'over'].map((n) => loadBitmap(`screens/${n}.png`)));
 const lettersSet = loadSpriteSet('letters');
@@ -120,11 +121,12 @@ function onFire(): void {
   if (mode === 'title' && menu.hidden) {
     // Browsers keep the page silent until a key press or a tap. The first one
     // only starts the sound, and the title song plays from its beginning.
-    if (!sound.muted && !sound.running && !audioAsked) {
+    if (!sound.muted && sound.musicOn && !sound.running && !audioAsked) {
       audioAsked = true;
       sound.unlock();
       return;
     }
+    sound.unlock();
     showMenu('main');
   } else if (mode === 'levelDone') {
     sound.stopSong();
@@ -251,11 +253,13 @@ function cycleLevel(delta: number): void {
 
 // --- menus --------------------------------------------------------------------
 
-type MenuItem = { label: string; note?: string; action: () => void; after?: () => HTMLElement };
+type MenuItem = { label: string; note?: string; action: () => void; dim?: boolean };
+/** A menu line: one button, two side by side, or another control. */
+type MenuEntry = MenuItem | { pair: [MenuItem, MenuItem] } | { control: () => HTMLElement };
 
-/** Our own menu: on the title ("main") or during play ("pause"). */
-function showMenu(kind: 'main' | 'pause'): void {
-  const items: MenuItem[] = [];
+/** Our own menu: on the title ("main") or during play ("pause"); `focus` is the control to focus, by position. */
+function showMenu(kind: 'main' | 'pause', focus = 0): void {
+  const items: MenuEntry[] = [];
   if (kind === 'main') {
     const saved = loadGame();
     if (saved) {
@@ -271,7 +275,13 @@ function showMenu(kind: 'main' | 'pause'): void {
     items.push({ label: 'Resume', action: hideMenu });
     items.push({ label: 'Restart level', action: () => void startLevel(levelName) });
   }
-  items.push({ label: soundLabel(), action: toggleSound, after: volumeSlider });
+  items.push({
+    pair: [
+      { label: sound.muted ? 'Sound: off' : 'Sound: on', action: toggleSound },
+      { label: sound.musicOn ? 'Music: on' : 'Music: off', action: toggleMusic, dim: sound.muted },
+    ],
+  });
+  items.push({ control: volumeSlider });
   items.push({
     label: 'Keys and help',
     action: () => {
@@ -299,25 +309,51 @@ function showMenu(kind: 'main' | 'pause'): void {
   const heading = document.createElement('h2');
   heading.textContent = kind === 'main' ? 'Electro Man' : 'Paused';
   box.append(heading);
-  for (const item of items) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.textContent = item.label;
-    if (item.note) {
-      const small = document.createElement('small');
-      small.textContent = item.note;
-      b.append(small);
+  for (const entry of items) {
+    if ('pair' in entry) {
+      const row = document.createElement('div');
+      row.className = 'menu-pair';
+      row.append(...entry.pair.map(menuItemButton));
+      box.append(row);
+    } else if ('control' in entry) {
+      box.append(entry.control());
+    } else {
+      box.append(menuItemButton(entry));
     }
-    b.addEventListener('click', () => {
-      sound.unlock();
-      item.action();
-    });
-    box.append(b);
-    if (item.after) box.append(item.after());
   }
   menu.dataset.kind = kind;
   menu.hidden = false;
-  box.querySelector('button')?.focus();
+  const controls = menuControls();
+  (controls[focus] ?? controls[0])?.focus();
+}
+
+function menuItemButton(item: MenuItem): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.textContent = item.label;
+  if (item.dim) b.classList.add('off');
+  if (item.note) {
+    const small = document.createElement('small');
+    small.textContent = item.note;
+    b.append(small);
+  }
+  b.addEventListener('click', () => {
+    sound.unlock();
+    item.action();
+  });
+  return b;
+}
+
+/** Everything in the menu the arrow keys move through, in order. */
+function menuControls(): HTMLElement[] {
+  return [...menu.querySelectorAll<HTMLElement>('button, [role=slider]')];
+}
+
+/** Draw the open menu again (after a setting changed), keeping the focus where it was. */
+function refreshMenu(): void {
+  if (menu.hidden) return;
+  const focus = menuControls().indexOf(document.activeElement as HTMLElement);
+  showMenu(menu.dataset.kind === 'pause' ? 'pause' : 'main', Math.max(0, focus));
 }
 
 function hideMenu(): void {
@@ -374,26 +410,37 @@ function savedVolume(): number {
   return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 100;
 }
 
-function soundLabel(): string {
-  return sound.muted ? 'Sound: off' : 'Sound: on';
-}
-
 function toggleSound(): void {
   sound.setMuted(!sound.muted);
   writeSetting('sound', sound.muted ? 'off' : 'on');
-  toast(soundLabel().toLowerCase());
-  if (!menu.hidden) showMenu(menu.dataset.kind === 'pause' ? 'pause' : 'main');
+  toast(sound.muted ? 'sound off' : 'sound on');
+  refreshMenu();
   if (!sound.muted) sound.unlock();
 }
 
-/** Arrow keys move through the menu (Left/Right set the volume); Enter or Space picks; Esc closes it. */
+/** Music only (title and between levels); the game's sound effects stay. */
+function toggleMusic(): void {
+  sound.setMusic(!sound.musicOn);
+  writeSetting('music', sound.musicOn ? 'on' : 'off');
+  toast(sound.musicOn ? 'music on' : 'music off');
+  refreshMenu();
+}
+
+/**
+ * Arrow keys move through the menu (Left/Right set the volume, or move
+ * between two buttons on one line); Enter or Space picks; Esc closes it.
+ */
 function menuKey(e: KeyboardEvent): boolean {
   if (menu.hidden) return false;
-  const buttons = [...menu.querySelectorAll<HTMLElement>('button, [role=slider]')];
-  const i = buttons.indexOf(document.activeElement as HTMLElement);
-  const onSlider = document.activeElement?.classList.contains('menu-slider');
-  if (onSlider && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+  const buttons = menuControls();
+  const active = document.activeElement as HTMLElement | null;
+  const i = buttons.indexOf(active!);
+  const sideways = e.key === 'ArrowLeft' || e.key === 'ArrowRight';
+  if (sideways && active?.classList.contains('menu-slider')) {
     setVolume(Math.round(sound.volume * 10) * 10 + (e.key === 'ArrowRight' ? 10 : -10));
+  } else if (sideways && active?.parentElement?.classList.contains('menu-pair')) {
+    const sibling = e.key === 'ArrowRight' ? active.nextElementSibling : active.previousElementSibling;
+    (sibling as HTMLElement | null)?.focus();
   } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
     const step = e.key === 'ArrowDown' ? 1 : -1;
     buttons[(i + step + buttons.length) % buttons.length]?.focus();

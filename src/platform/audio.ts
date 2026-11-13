@@ -36,6 +36,8 @@ export class SoundSystem {
   private music: GainNode | null = null;
   /** The volume control, after both effects and music. */
   private master: GainNode | null = null;
+  /** Music can be turned off on its own, keeping the effects. */
+  musicOn = true;
   private song: { entries: SongEntry[]; next: number; at: number; sources: AudioBufferSourceNode[]; timer: number } | null =
     null;
   /** Wall-clock start of the current song and its pieces' durations, for songPosition(). */
@@ -88,7 +90,17 @@ export class SoundSystem {
     if (muted) {
       for (const ch of this.channels) this.stopChannel(ch);
     }
-    if (this.music) this.music.gain.value = muted ? 0 : 1;
+    this.musicGain();
+  }
+
+  setMusic(on: boolean): void {
+    this.musicOn = on;
+    this.musicGain();
+  }
+
+  /** A song keeps running when silenced (the title's pictures follow it); only its gain changes. */
+  private musicGain(): void {
+    if (this.music) this.music.gain.value = this.muted || !this.musicOn ? 0 : 1;
   }
 
   play(name: SoundName): void {
@@ -182,8 +194,8 @@ export class SoundSystem {
       this.sfx = this.ctx.createGain();
       this.sfx.connect(this.master);
       this.music = this.ctx.createGain();
-      this.music.gain.value = this.muted ? 0 : 1;
       this.music.connect(this.master);
+      this.musicGain();
     }
     return this.ctx;
   }

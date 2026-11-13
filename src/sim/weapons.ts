@@ -34,8 +34,13 @@ const SHOTS: Record<number, { right: number[]; left: number[]; dx: number; dy: n
   5: { right: range(36, 37), left: range(38, 39), dx: 18, dy: 4, speed: 16 },
 };
 
-/** The bow's collision box covers both of its tiles (EB_HERO.C:286). */
-const BOW_HEIGHT = 2 * TILE - 6;
+/**
+ * The bow's collision box covers both of its tiles: the original moves its
+ * bottom edge down by 18, from 24 to 42, so with its top at 6 it is 36 tall
+ * (EB_HERO.C:285-286). PyElectroMan makes it 42 tall, which reaches 4 pixels
+ * into the floor under the hero, so any floor edge stopped the shot (G19).
+ */
+const BOW_HEIGHT = TILE + 18 - 6;
 
 /** A shot of weapon `level` fired by a hero at (x, y) facing right (1) or left (0). */
 export function createShot(level: number, orientation: 0 | 1, x: number, y: number): SimObject {

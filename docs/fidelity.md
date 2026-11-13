@@ -62,7 +62,7 @@ mapping rather than exactly.
 | G16 | Teleport timing | chosen | Fade out (6 ticks), out of sight for 12 ticks, move to the target, fade in (6 ticks), walk on. PyElectroMan fades in at once and then holds the hero frozen for the 12 ticks; in DOS the hero is gone for a while in between and can move soon after appearing, which also fits the original's names (teleport "in", hero_teleport_wait_proc, teleport "out"). The screen changes at the end of the wait. DOS check: on a teleport to another screen, does the new screen show before the hero appears? |
 | G17 | Shots | chosen | As PyElectroMan: one shot per press; level 1 flies one run of its animation (7 ticks), levels 2-5 to the screen edge; a shot stops at a wall (one explosion, three for the level 5 bow) or at the first shootable object, which explodes, and if breakable leaves the sprite after its animation in the level map until the hero dies. Shots do not hit enemies yet (step 8). DOS check: ranges and speeds by eye. |
 | G18 | Offsets PyElectroMan does not double | chosen | PyElectroMan works in doubled pixels but uses some of the original's offsets as they are: the explosion over a dying creature (centre − 12), the gap between a cannon and its shot (1 pixel) and the death explosions (G15). We use the original's values in original pixels. |
-| G19 | The level 5 "bow" | open | Reported in play (2026-11-13): the bow often stops short, as if it hit something not seen on screen, and does not feel like the strongest weapon, though it should burn through almost everything. Not investigated yet. Our shots match PyElectroMan tick by tick, so it is PyElectroMan's behaviour too. Leads: its collision box is almost two tiles tall (`BOW_HEIGHT`, EB_HERO.C:286), so a wall edge or ledge level with the hero's head or feet stops it; it stops at the first creature, as levels 1-3 do (only level 4 flies on). DOS check: what the bow passes through and what stops it. |
+| G19 | The level 5 "bow" | settled | Reported in play: the bow stopped short, as if on the floor. Its collision box covers both of its tiles; the original sets the box's top at 6 and moves its bottom from 24 to 24 + 18 = 42, so it is 36 pixels tall (EB_HERO.C:285-286). PyElectroMan takes 42 as the height, which reaches 4 pixels into the floor under the hero, so any floor tile with a solid side in its way stopped the shot. We use 36; the reference run patches PyElectroMan the same way. Like levels 1-3 it still stops at the first creature or shootable object, now on either of its two tile rows. DOS check: does the bow pass through creatures? |
 
 ## PyElectroMan bugs not ported
 
@@ -71,6 +71,8 @@ run patches each of them out, so the comparison stays exact.
 
 - Removing an object while the objects are being updated skips the next
   object's update for that tick.
+- The level 5 bow's collision box is 6 pixels too tall, down into the
+  floor (G19).
 - Removing an object from the level map deletes the first object at its
   position, which can be a different object (two stacked in one cell), and
   a disappearing shot deletes whatever level object sits at its position.

@@ -6,8 +6,10 @@ on-screen HUD, saving) and fixes the PyElectroMan bugs and deviations we do not
 port, each documented where it is done and in docs/fidelity.md. Needs pygame.
 """
 
+import inspect
 import os
 import sys
+import textwrap
 import types
 
 # Classes whose update() runs each tick (everything else stays as placed).
@@ -206,6 +208,21 @@ def _weapons_and_death(m):
 
     pl.Projectile.vanish = projectile_vanish
     pl.PlayerEntity.state_death = state_death
+
+    # G19: the bow's box is 36 original pixels tall (top 6, bottom 24 + 18,
+    # EB_HERO.C:285-286); PyElectroMan makes it 42, down into the floor.
+    for name in ("check_wall_collision", "collides_with"):
+        _rewrite(pl, pl.Projectile, name, "gl.SPRITE_Y * 2 - 12", "gl.SPRITE_Y * 2 - 24")
+
+
+def _rewrite(module, cls, name, old, new):
+    """Replace a method with its own source with `old` changed to `new` (which must occur)."""
+    source = textwrap.dedent(inspect.getsource(getattr(cls, name)))
+    if old not in source:
+        raise RuntimeError(f"{cls.__name__}.{name}: {old!r} not found; PyElectroMan changed?")
+    namespace = {}
+    exec(compile(source.replace(old, new), f"<patched {cls.__name__}.{name}>", "exec"), vars(module), namespace)
+    setattr(cls, name, namespace[name])
 
 
 def _enemies(m):
