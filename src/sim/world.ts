@@ -19,6 +19,7 @@ import {
 import { ACTION, createExplosion, objectBox, objectTouch, objectTouchable, type SimObject } from './objects.ts';
 import { enemyHits } from './enemies.ts';
 import { BorlandRandom } from './random.ts';
+import type { SoundName } from './sounds.ts';
 import { enterRoom, screenLayout, stepRoom, type MapRemoval, type Room } from './room.ts';
 import type { LevelSprites } from './tiles.ts';
 
@@ -42,6 +43,14 @@ interface Removal {
   id: MapRemoval;
 }
 
+/** A level in progress, as a saved game keeps it. */
+export interface LevelProgress {
+  checkpoint: TilePlace;
+  disks: number;
+  /** Where the collected disks were (screen and object number). */
+  diskRemovals: Removal[];
+}
+
 /** Ids of objects added to the level map during play start here. */
 const ADDED_IDS = 1000;
 
@@ -57,12 +66,16 @@ export class World {
   checkpoint: TilePlace;
   /** Disks collected on this level; the exit opens at three. */
   disks = 0;
+  /** Counts checkpoints reached; the shell saves the game when it changes. */
+  checkpoints = 0;
   /** Set when a killing floor opens; falling low then kills, on any screen, until respawn. */
   killingFloor = false;
   /** The hero is going out through the exit. */
   exiting = false;
   /** The exit animation has finished: the level is done. */
   completed = false;
+  /** Sounds asked for since the shell last took them (the level-entry sample first). */
+  private sounds: SoundName[] = ['area'];
   /**
    * Objects removed from the level map. The original keeps a working copy of
    * the map that objects are deleted from, and restores it when the hero
@@ -121,6 +134,24 @@ export class World {
     return kept;
   }
 
+  /** What a saved game keeps of the level (PyElectroMan SaveGame: checkpoint and disks). */
+  progress(): LevelProgress {
+    return { checkpoint: { ...this.checkpoint }, disks: this.disks, diskRemovals: this.diskRemovals.map((r) => ({ ...r })) };
+  }
+
+  /** Continue a saved game: back at its checkpoint, with its disks already collected. */
+  resume(p: LevelProgress): void {
+    this.checkpoint = { ...p.checkpoint };
+    this.disks = p.disks;
+    this.diskRemovals = p.diskRemovals.map((r) => ({ ...r }));
+    this.removed = [...this.diskRemovals];
+    this.added = [];
+    this.rooms.clear();
+    this.enter(this.checkpoint.screen);
+    this.hero = createHero();
+    standOnTile(this.hero, this.checkpoint.x, this.checkpoint.y);
+  }
+
   /** Put a fresh hero on a tile of a screen, standing (tests and the reference comparison). */
   placeHero(place: TilePlace): void {
     this.removed = [];
@@ -142,6 +173,9 @@ export class World {
       hero: hero ? { x: hero.x, y: hero.y } : null,
       spawn: (o) => {
         this.spawned.push(o);
+      },
+      sound: (name) => {
+        this.sounds.push(name);
       },
       removeFromMap: (o) => {
         if (o.id >= 0) this.removed.push({ screen, id: o.id });
@@ -214,6 +248,7 @@ export class World {
         const c = this.checkpoint;
         if (c.screen === screen && c.x === o.x && c.y === o.y) return false;
         this.checkpoint = { screen, x: o.x, y: o.y };
+        this.checkpoints += 1;
         return true;
       },
       explode: (x, y) => {
@@ -228,6 +263,9 @@ export class World {
       },
       shoot: (shot) => {
         this.spawned.push(shot);
+      },
+      sound: (name) => {
+        this.sounds.push(name);
       },
     };
   }
@@ -268,6 +306,14 @@ export class World {
     ctx.touched.length = 0;
     hero.toGround = groundDistance(HERO_BOX, hero.x, hero.y, solidBoxes(this.room, this.sprites));
     switchState(hero, 'stand', ctx);
+    this.sounds.push('area'); // hero_enter_level_proc EB_HERO.C:681
+  }
+
+  /** Sounds asked for since the last call, in order. */
+  takeSounds(): SoundName[] {
+    const sounds = this.sounds;
+    this.sounds = [];
+    return sounds;
   }
 
   /** Plain copy of the whole state, for tests and replays. */

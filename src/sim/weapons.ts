@@ -7,6 +7,7 @@ import { SCREEN_COLS, TILE, type SpriteSetFile } from '../data/types.ts';
 import { rectsOverlap, type Rect, type SolidBox } from './collision.ts';
 import { killCreature } from './enemies.ts';
 import { blank, createBroken, createExplosion, currentInfo, objectBox, type SimObject } from './objects.ts';
+import type { SoundName } from './sounds.ts';
 import type { LevelSprites } from './tiles.ts';
 
 /** Shots per magazine for weapon levels 0..5. */
@@ -67,6 +68,7 @@ export interface ShotContext {
   /** Add an object to the room and to the level map. */
   leave(o: SimObject): void;
   explode(x: number, y: number): void;
+  sound(name: SoundName): void;
 }
 
 function shotBox(shot: SimObject, weapons: SpriteSetFile | null): Rect {
@@ -118,6 +120,7 @@ export function updateShot(shot: SimObject, c: ShotContext): void {
       if (touches(box, objectBox(o, c.sprites))) {
         killCreature(o, c);
         c.explode(shot.x, shot.y);
+        c.sound('blast');
         hitCreature = true;
       }
       continue;
@@ -151,4 +154,5 @@ function hitObject(o: SimObject, flags: number, c: ShotContext): void {
     c.leave(broken);
   }
   c.objects.push(explosion);
+  c.sound('blast');
 }
