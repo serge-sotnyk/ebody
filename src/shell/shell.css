@@ -45,6 +45,14 @@ a {
   display: block;
 }
 
+/* During play the playfield is centred rather than the whole frame: it takes
+   312 of the frame's 320 pixels, and the rest is a black strip on the right
+   (as in DOS), which would make the right-hand band look wider. The frame
+   moves right by half the strip, 4 / 320 of its width. */
+#stage.play #screen {
+  transform: translateX(1.25%);
+}
+
 .corner-buttons {
   position: fixed;
   top: calc(env(safe-area-inset-top) + 10px);
@@ -283,13 +291,51 @@ a {
   justify-content: space-between;
 }
 
-/* Tablets: a row in each bottom corner; the rocker sits in the corner. */
+/* Tablets: two rows in each bottom corner; the strip below the picture is
+   one row tall, so the upper row reaches over the picture (or the black
+   bands beside it); the buttons are see-through.
+     left:  fire above the rocker's outer half; the rocker in the corner
+     right: jump above fire, fire in the corner, Down further in (seldom needed) */
 .pad.below .cluster {
-  align-items: flex-end;
+  display: grid;
+  gap: var(--gap);
+  align-items: end;
 }
 
 .pad.below .cluster.move {
-  flex-direction: row-reverse;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    'fire .'
+    'rocker rocker';
+  width: var(--rocker-w);
+}
+
+.pad.below .cluster.move > .btn {
+  grid-area: fire;
+  justify-self: center;
+}
+
+.pad.below .rocker {
+  grid-area: rocker;
+}
+
+.pad.below .cluster.act {
+  grid-template-columns: var(--btn) calc(0.5 * var(--btn)) var(--btn);
+  grid-template-areas:
+    '. . jump'
+    'down . fire';
+}
+
+.pad.below .cluster.act > [data-bit='4'] {
+  grid-area: jump;
+}
+
+.pad.below .cluster.act > [data-bit='16'] {
+  grid-area: fire;
+}
+
+.pad.below .cluster.act > [data-bit='8'] {
+  grid-area: down;
 }
 
 .btn {

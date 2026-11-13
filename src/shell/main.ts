@@ -111,6 +111,7 @@ function finishLevel(): void {
 
 function setMode(next: Mode): void {
   mode = next;
+  $('stage').classList.toggle('play', mode === 'play'); // centres the playfield (shell.css)
   if (mode !== 'play') history.replaceState(null, '', location.pathname);
   layoutPad();
   loop.invalidate();
