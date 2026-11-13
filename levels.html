@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Level viewer</title>
+    <link rel="stylesheet" href="/src/viewer/viewer.css" />
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+      #layout {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+      }
+      #stage {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+        background: #000;
+      }
+      aside {
+        width: 220px;
+        padding: 12px;
+        background: var(--panel);
+        border-left: 1px solid var(--border);
+        overflow: auto;
+      }
+      #minimap {
+        width: 192px;
+        height: 192px;
+        cursor: pointer;
+        display: block;
+      }
+      @media (max-width: 700px) {
+        #layout {
+          flex-direction: column;
+        }
+        aside {
+          width: auto;
+          border-left: 0;
+          border-top: 1px solid var(--border);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1><a href="./">Electro Man</a> · levels</h1>
+      <label>Level <select id="level"></select></label>
+      <label>Order
+        <select id="order">
+          <option value="game">game (scenery, solid, objects, in-front)</option>
+          <option value="planes">planes 0–3 (as PyElectroMan maps)</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="boxes" /> collision boxes</label>
+      <span class="muted">Arrows: move · [ ]: level · G: order · C: boxes</span>
+    </header>
+    <div id="layout">
+      <div id="stage"><canvas id="screen"></canvas></div>
+      <aside>
+        <canvas id="minimap" class="pixelated" width="16" height="16"></canvas>
+        <p id="info" class="mono"></p>
+        <p class="muted">Static layout only: objects show the tile placed in the level, not animated, and blinking objects are always shown.</p>
+      </aside>
+    </div>
+    <script type="module" src="/src/viewer/levels.ts"></script>
+  </body>
+</html>

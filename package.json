@@ -1,0 +1,36 @@
+{
+  "name": "ebody",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser port of Electro Man (Electro Body, xLand 1992), based on PyElectroMan",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/serge-sotnyk/ebody.git"
+  },
+  "scripts": {
+    "assets": "tsx tools/convert/main.ts",
+    "verify-assets": "tsx tools/convert/verify.ts",
+    "verify-objects": "tsx tools/reference/verify-objects.ts",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "verify-hero": "tsx tools/reference/verify-hero.ts",
+    "dev:lan": "vite --host",
+    "predev": "npm run assets",
+    "predev:lan": "npm run assets",
+    "prebuild": "npm run assets"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/pngjs": "^6.0.5",
+    "pngjs": "^7.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}
